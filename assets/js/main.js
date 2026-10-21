@@ -15,7 +15,7 @@
     cacheBust: ''
   };
   try {
-    const res = await fetch('api/config.php');
+    const res = await fetch('api/config.php?t=' + Date.now());
     const data = await res.json();
     if (data && typeof data === 'object') cfg = { ...cfg, ...data };
   } catch(e){ console.warn('config load failed', e); }
@@ -55,6 +55,19 @@
   const addr = document.getElementById('footer-address'); if (addr) addr.textContent = cfg.address;
   const email = document.getElementById('footer-email'); if (email) email.textContent = cfg.email;
   const year = document.getElementById('year'); if (year) year.textContent = new Date().getFullYear();
+
+  // Google Analytics 4 (dynamic)
+  if (cfg.analyticsId && cfg.analyticsId !== 'G-XXXXXXXXXX') {
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + cfg.analyticsId;
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    window.gtag = gtag;
+    gtag('js', new Date());
+    gtag('config', cfg.analyticsId);
+  }
 
   // Mobile nav
   const toggle = document.querySelector('.nav-toggle');
