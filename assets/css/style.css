@@ -42,6 +42,18 @@ p { margin: 0 0 1em; }
 
 /* Hero */
 .hero { position: relative; min-height: 92vh; display: flex; align-items: center; overflow: hidden; }
+.hero-title { animation: fadeInUp 1s ease-out both; }
+.hero-sub { animation: fadeInUp 1s ease-out .2s both; }
+.hero-actions { animation: fadeInUp 1s ease-out .4s both; }
+.eyebrow { animation: fadeInUp .8s ease-out both; }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: none; } }
+
+/* Marquee */
+.marquee-section { background: var(--bg-soft); padding: 30px 0; overflow: hidden; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.marquee-track { display: flex; gap: 20px; width: max-content; animation: marquee 30s linear infinite; }
+.marquee-track img { height: 120px; width: auto; border-radius: 12px; box-shadow: var(--shadow); }
+.marquee-track:hover { animation-play-state: paused; }
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 .hero-bg { position: absolute; inset: 0; background: url('../img/hero.jpg') center/cover no-repeat; transform: scale(1.1); }
 .hero-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(43,31,26,.65), rgba(43,31,26,.25)); }
 .hero-bg::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 30%, rgba(201,162,74,.15), transparent 60%); }

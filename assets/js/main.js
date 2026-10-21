@@ -130,6 +130,12 @@
         </article>
       `).join('');
       window.__products = products;
+      // Marquee
+      const track = document.getElementById('marquee-track');
+      if (track) {
+        const imgs = products.map(p => `<img src="${p.image}${cb}" alt="${p.name}" loading="lazy">`).join('');
+        track.innerHTML = imgs + imgs;
+      }
       document.querySelectorAll('.open-modal').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.preventDefault();
