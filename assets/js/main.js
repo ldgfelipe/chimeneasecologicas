@@ -153,8 +153,53 @@
     }
   }
 
-  // Magnetic buttons (progressive enhancement)
-  if (typeof gsap !== 'undefined') {
+  // Progressive enhancement with GSAP
+  if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+    document.body.classList.add('js-loaded');
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Hero entrance
+    const heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+    heroTl.from('.eyebrow', { opacity: 0, y: 20, duration: 0.6 })
+          .from('.hero-title', { opacity: 0, y: 80, duration: 1.2 }, '-=0.3')
+          .from('.hero-sub', { opacity: 0, y: 40, duration: 0.9 }, '-=0.6')
+          .from('.hero-actions > *', { opacity: 0, y: 20, duration: 0.7, stagger: 0.15 }, '-=0.5');
+
+    // Parallax hero bg
+    gsap.to('.hero-bg', { yPercent: 25, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
+
+    // Reveal on scroll
+    gsap.utils.toArray('.reveal').forEach((el) => {
+      gsap.fromTo(el, { opacity: 0, y: 50 }, {
+        opacity: 1, y: 0, duration: 0.9, ease: 'power2.out',
+        scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none none' }
+      });
+    });
+
+    // Features stagger
+    gsap.from('.feature', { opacity: 0, y: 40, duration: 0.7, stagger: 0.12, ease: 'power2.out', scrollTrigger: { trigger: '.features', start: 'top 80%' } });
+
+    // Product cards stagger
+    gsap.from('.product-card', { opacity: 0, y: 60, scale: 0.95, duration: 0.8, stagger: 0.1, ease: 'back.out(1.2)', scrollTrigger: { trigger: '.products-grid', start: 'top 80%' } });
+
+    // Showroom
+    gsap.from('.showroom-grid img', { opacity: 0, x: -60, duration: 1, ease: 'power2.out', scrollTrigger: { trigger: '.showroom-grid', start: 'top 80%' } });
+    gsap.from('.showroom-info', { opacity: 0, x: 60, duration: 1, ease: 'power2.out', scrollTrigger: { trigger: '.showroom-grid', start: 'top 80%' } });
+
+    // Contact form
+    gsap.from('.contact-form', { opacity: 0, y: 40, duration: 0.9, ease: 'power2.out', scrollTrigger: { trigger: '.contact-grid', start: 'top 80%' } });
+
+    // WhatsApp pulse
+    gsap.to('.wa-float', { scale: 1.08, duration: 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+
+    // Counters
+    document.querySelectorAll('.stat-num').forEach((el) => {
+      const target = parseInt(el.dataset.count, 10) || 0;
+      const obj = { val: 0 };
+      gsap.to(obj, { val: target, duration: 2, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 85%' }, onUpdate: () => { el.textContent = Math.floor(obj.val); } });
+    });
+
+    // Magnetic buttons
     document.querySelectorAll('.btn').forEach((btn) => {
       btn.addEventListener('mousemove', (e) => {
         const r = btn.getBoundingClientRect();

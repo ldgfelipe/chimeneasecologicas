@@ -149,5 +149,6 @@ p { margin: 0 0 1em; }
   .hero-actions { flex-direction: column; }
   .btn { width: 100%; }
 }
-/* Contenido siempre visible por defecto (sin dependencia de JS) */
+/* Contenido visible por defecto; oculto solo si JS (GSAP) cargó */
 .reveal { opacity: 1; transform: none; }
+.js-loaded .reveal { opacity: 0; transform: translateY(30px); }
