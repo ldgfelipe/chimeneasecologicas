@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chimeneas Ecológicas | Chimeneas de bioetanol y decoración premium</title>
+<meta name="description" content="Chimeneas de bioetanol y artículos de decoración para el hogar. Calor limpio, diseño premium y respeto por el medio ambiente. Showroom en Puebla.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css?v=6">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "Chimeneas Ecológicas",
+  "image": "assets/img/logo.jpg",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Calzada Zavaleta 2302",
+    "addressLocality": "Puebla",
+    "addressCountry": "MX"
+  },
+  "telephone": "+52-222-000-0000",
+  "url": "http://localhost/chimeneasecologicas.com.mx/",
+  "sameAs": [
+    "https://www.instagram.com/chimeneasecologicaspuebla/",
+    "https://www.facebook.com/chimeneas.puebla",
+    "https://www.tiktok.com/@chimeneas.ecologi"
+  ]
+}
+</script>
+<!-- GSAP -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#inicio" class="logo"><img id="img-logo" src="assets/img/logo.jpg" alt="Chimeneas Ecológicas"></a>
+      <nav class="nav">
+        <a href="#servicios">Servicios</a>
+        <a href="#productos">Productos</a>
+        <a href="#showroom">Showroom</a>
+        <a href="#contacto">Contacto</a>
+      </nav>
+      <a id="wa-header" href="#" class="btn btn-primary btn-sm" target="_blank" rel="noopener">WhatsApp</a>
+      <button class="nav-toggle" aria-label="Menú">☰</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section id="inicio" class="hero">
+      <div class="hero-bg" id="hero-bg"></div>
+      <div class="container hero-content">
+        <p class="eyebrow">Chimeneas de bioetanol · Puebla</p>
+        <h1 class="hero-title">Fuego limpio, diseño que transforma tu hogar</h1>
+        <p class="hero-sub">Chimeneas ecológicas de bioetanol y piezas de decoración premium. Sin humo, sin obra, sin complicaciones.</p>
+        <div class="hero-actions">
+          <a href="#productos" class="btn btn-primary">Ver catálogo</a>
+          <a id="wa-hero" href="#" class="btn btn-outline" target="_blank" rel="noopener">Cotizar por WhatsApp</a>
+        </div>
+      </div>
+      <div class="scroll-indicator">↓</div>
+    </section>
+
+    <!-- STATS -->
+    <section class="stats-section">
+      <div class="container stats-grid">
+        <div class="stat "><span class="stat-num" data-count="500">500</span><span class="stat-label">Proyectos realizados</span></div>
+        <div class="stat "><span class="stat-num" data-count="8">8</span><span class="stat-label">Modelos de chimeneas</span></div>
+        <div class="stat "><span class="stat-num" data-count="100">100</span><span class="stat-label">% Ecológico</span></div>
+        <div class="stat "><span class="stat-num" data-count="24">24</span><span class="stat-label">Horas de autonomía máx.</span></div>
+      </div>
+    </section>
+
+    <!-- SERVICIOS -->
+    <section id="servicios" class="section section-light">
+      <div class="container">
+        <h2 class="section-title ">Por qué elegir nuestras chimeneas</h2>
+        <p class="section-sub ">Soluciones de fuego ecológico pensadas para espacios modernos.</p>
+        <div class="features">
+          <div class="feature "><div class="feature-icon">🔥</div><div><h3>100% Ecológico</h3><p>Bioetanol de maíz, renovable. Sin humo, sin hollín.</p></div></div>
+          <div class="feature "><div class="feature-icon">✦</div><div><h3>Diseño Premium</h3><p>Piezas de autor con acabados de alta gama.</p></div></div>
+          <div class="feature "><div class="feature-icon">⚡</div><div><h3>Sin instalación</h3><p>No requiere tiro, gas ni obra.</p></div></div>
+          <div class="feature "><div class="feature-icon">🛡</div><div><h3>Seguridad certificada</h3><p>Quemadores con doble cámara y acero inoxidable.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUCTOS -->
+    <section id="productos" class="section">
+      <div class="container">
+        <h2 class="section-title ">Productos destacados</h2>
+        <p class="section-sub ">Chimeneas de bioetanol, quemadores y artículos de decoración.</p>
+        <div class="products-grid" id="products-grid"></div>
+      </div>
+    </section>
+
+    <!-- SHOWROOM -->
+    <section id="showroom" class="section section-light">
+      <div class="container">
+        <h2 class="section-title ">Nuestro showroom</h2>
+        <p class="section-sub ">Visítanos en Calzada Zavaleta 2302, Puebla. Conoce nuestras chimeneas en persona.</p>
+        <div class="showroom-grid">
+          <img id="img-showroom" src="assets/img/showroom.jpg" alt="Showroom" loading="lazy" class="">
+          <div class="showroom-info ">
+            <p><strong>Dirección:</strong> Calzada Zavaleta 2302, Puebla, México</p>
+            <p><strong>WhatsApp:</strong> <a id="wa-showroom" href="#">+52 (222) 000 0000</a></p>
+            <p><strong>Google Maps:</strong> <a id="maps-link" href="#" target="_blank" rel="noopener">Ver ubicación</a></p>
+            <div class="showroom-actions">
+              <a id="wa-visit" href="#" class="btn btn-primary" target="_blank" rel="noopener">Agendar visita</a>
+              <a id="wa-catalog" href="#" class="btn btn-outline" target="_blank" rel="noopener">Pedir catálogo</a>
+            </div>
+          </div>
+        </div>
+        <div class="map-embed">
+          <iframe id="map-iframe" src="" width="100%" height="360" style="border:0;border-radius:16px;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACTO -->
+    <section id="contacto" class="section">
+      <div class="container">
+        <h2 class="section-title ">Contacto</h2>
+        <p class="section-sub ">Solicita una cotización o agenda una visita.</p>
+        <div class="contact-grid">
+          <form id="contact-form" class="contact-form ">
+            <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+            <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+            <div class="form-group"><label>Teléfono</label><input type="text" name="phone"></div>
+            <div class="form-group"><label>Mensaje</label><textarea name="message" required></textarea></div>
+            <button type="submit" class="btn btn-primary">Enviar</button>
+            <div id="form-msg" class="form-msg"></div>
+          </form>
+          <div class="contact-info ">
+            <h3>Otras formas de contacto</h3>
+            <p><a id="wa-contact" href="#" target="_blank" rel="noopener">WhatsApp</a></p>
+            <p><a id="ig-link" href="#" target="_blank" rel="noopener">Instagram</a></p>
+            <p><a id="fb-link" href="#" target="_blank" rel="noopener">Facebook</a></p>
+            <p><a id="tt-link" href="#" target="_blank" rel="noopener">TikTok</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal">
+      <button class="modal-close" id="modal-close" aria-label="Cerrar">&times;</button>
+      <img id="modal-img" src="" alt="" class="modal-img">
+      <div class="modal-body">
+        <span id="modal-cat" class="modal-cat"></span>
+        <h2 id="modal-title"></h2>
+        <p id="modal-specs" class="modal-specs"></p>
+        <p id="modal-desc" class="modal-desc"></p>
+        <div class="modal-actions">
+          <a id="modal-wa" href="#" class="btn btn-primary" target="_blank" rel="noopener">Solicitar información</a>
+          <a href="#contacto" class="btn btn-outline" id="modal-contact">Ir a contacto</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <img src="assets/img/logo.jpg" alt="Chimeneas Ecológicas" class="footer-logo">
+        <p>Chimeneas de bioetanol y artículos de decoración para el hogar.</p>
+        <p id="footer-address"></p>
+      </div>
+      <div>
+        <h4>Síguenos</h4>
+        <p><a id="ig-footer" href="#" target="_blank" rel="noopener">Instagram</a></p>
+        <p><a id="fb-footer" href="#" target="_blank" rel="noopener">Facebook</a></p>
+        <p><a id="tt-footer" href="#" target="_blank" rel="noopener">TikTok</a></p>
+        <p><a id="maps-footer" href="#" target="_blank" rel="noopener">Google Maps</a></p>
+      </div>
+      <div>
+        <h4>Contacto</h4>
+        <p><a id="wa-footer" href="#" target="_blank" rel="noopener">WhatsApp</a></p>
+        <p id="footer-email"></p>
+      </div>
+    </div>
+    <div class="copyright">© <span id="year"></span> Chimeneas Ecológicas. Todos los derechos reservados.</div>
+  </footer>
+
+  <a id="wa-float" href="#" class="wa-float" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>
+
+  <script src="assets/js/main.js?v=6" defer></script>
+  <!-- GA4 placeholder -->
+  <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
+</body>
+</html>

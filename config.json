@@ -1,0 +1,22 @@
+{
+    "siteName": "Chimeneas Ecológicas",
+    "whatsapp": "522220000000",
+    "whatsappMessage": "Hola, me interesa una cotización",
+    "email": "hola@chimeneasecologicas.com",
+    "address": "Calzada Zavaleta 2302, Puebla, México",
+    "googleMapsUrl": "https://maps.app.goo.gl/pQSRYkWWo2Cht6Jr9",
+    "googleMapsEmbed": "https://www.google.com/maps?q=Calzada+Zavaleta+2302,+Puebla,+Mexico&output=embed",
+    "gbpUrl": "https://maps.app.goo.gl/pQSRYkWWo2Cht6Jr9",
+    "instagram": "https://www.instagram.com/chimeneasecologicaspuebla/",
+    "facebook": "https://www.facebook.com/chimeneas.puebla",
+    "tiktok": "https://www.tiktok.com/@chimeneas.ecologi",
+    "analyticsId": "G-XXXXXXXXXX",
+    "formsEndpoint": "/api/contact.php",
+    "images": {
+        "logo": "assets/img/logo.jpg",
+        "hero": "assets/img/hero.jpg",
+        "about": "assets/img/about.jpg",
+        "showroom": "assets/img/showroom.jpg"
+    },
+    "cacheBust": "1792606377"
+}

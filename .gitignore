@@ -1,0 +1,11 @@
+# Sensitive
+admin/.password
+data/submissions.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# Temp
+*.tmp

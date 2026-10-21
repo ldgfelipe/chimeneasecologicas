@@ -1,0 +1,30 @@
+# Protect sensitive files
+<Files "config.json">
+  Require all denied
+</Files>
+<FilesMatch "\.json$">
+  <If "%{REQUEST_URI} !~ m#^/api/#">
+    Require all denied
+  </If>
+</FilesMatch>
+
+# Security headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Cache control
+<IfModule mod_headers.c>
+  # HTML and API: no cache
+  <FilesMatch "\.(html|php)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+  # Images, CSS, JS: cache 1 week
+  <FilesMatch "\.(jpg|jpeg|png|webp|gif|css|js)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>
