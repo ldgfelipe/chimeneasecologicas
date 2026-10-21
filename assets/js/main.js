@@ -2,7 +2,7 @@
   // Config with defaults (fallback if fetch fails)
   let cfg = {
     images: { logo: 'assets/img/logo.jpg', hero: 'assets/img/hero.jpg', showroom: 'assets/img/showroom.jpg' },
-    whatsapp: '522220000000',
+    whatsapp: '522227150505',
     whatsappMessage: 'Hola, me interesa una cotización',
     googleMapsUrl: 'https://maps.app.goo.gl/pQSRYkWWo2Cht6Jr9',
     googleMapsEmbed: 'https://www.google.com/maps?q=Calzada+Zavaleta+2302,+Puebla,+Mexico&output=embed',
