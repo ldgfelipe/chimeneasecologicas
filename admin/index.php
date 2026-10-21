@@ -27,7 +27,15 @@ $imgDir = $base . '/assets/img';
 if (isset($_POST['login'])) {
     $pw = trim($_POST['password'] ?? '');
     $hash = file_exists($passFile) ? trim(file_get_contents($passFile)) : '';
+    $ok = false;
     if ($hash && password_verify($pw, $hash)) {
+        $ok = true;
+    } elseif (!$hash && $pw === 'admin123') {
+        // First-time setup: create password file
+        file_put_contents($passFile, password_hash('admin123', PASSWORD_DEFAULT));
+        $ok = true;
+    }
+    if ($ok) {
         $_SESSION['auth'] = true;
         header('Location: index.php');
         exit;
