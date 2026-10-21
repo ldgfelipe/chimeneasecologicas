@@ -242,12 +242,15 @@ th{color:#7a3b1e;}
     <h2>Configuración general</h2>
     <form method="post">
       <input type="hidden" name="save_config" value="1">
-      <?php foreach (array('siteName'=>'Nombre del sitio','whatsapp'=>'WhatsApp (solo números)','whatsappMessage'=>'Mensaje de WhatsApp','email'=>'Email','address'=>'Dirección','googleMapsUrl'=>'URL Google Maps','googleMapsEmbed'=>'URL embed Google Maps','gbpUrl'=>'URL Google Business Profile','instagram'=>'Instagram','facebook'=>'Facebook','tiktok'=>'TikTok','analyticsId'=>'Google Analytics ID (G-XXXX)','formsEndpoint'=>'Endpoint de formularios') as $k=>$label): ?>
+      <?php foreach (array('siteName'=>'Nombre del sitio','whatsapp'=>'WhatsApp (solo números)','whatsappMessage'=>'Mensaje de WhatsApp','email'=>'Email','address'=>'Dirección','googleMapsUrl'=>'URL Google Maps','googleMapsEmbed'=>'URL embed Google Maps','gbpUrl'=>'URL Google Business Profile','instagram'=>'Instagram','facebook'=>'Facebook','tiktok'=>'TikTok','analyticsId'=>'Google Analytics ID (G-XXXX)','formsEndpoint'=>'Endpoint de formularios (local: /api/contact.php | hosting estático: URL de Formspree)') as $k=>$label): ?>
         <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;"><?php echo $label; ?></label>
         <input type="text" name="<?php echo $k; ?>" value="<?php echo htmlspecialchars($cfg[$k] ?? ''); ?>">
       <?php endforeach; ?>
       <button type="submit">Guardar cambios</button>
     </form>
+    <div style="margin-top:16px;padding:12px;background:#f3ede4;border-radius:10px;font-size:.85rem;color:#6b5a52;">
+      <strong>💡 Hosting estático (sin PHP):</strong> Si tu hosting no soporta PHP, usa <a href="https://formspree.io" target="_blank" rel="noopener">Formspree</a> (gratis). Crea un formulario en Formspree y pega la URL en "Endpoint de formularios" (ej. <code>https://formspree.io/f/TU_ID</code>). Los envíos llegarán a tu email y al dashboard de Formspree.
+    </div>
   </div>
 
   <?php elseif ($tab === 'images'): ?>

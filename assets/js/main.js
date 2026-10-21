@@ -84,13 +84,18 @@
       btn.disabled = true;
       const data = new FormData(form);
       try {
-        const res = await fetch(cfg.formsEndpoint || '/api/contact.php', { method: 'POST', body: data });
+        const res = await fetch(cfg.formsEndpoint || '/api/contact.php', {
+          method: 'POST',
+          body: data,
+          headers: { 'Accept': 'application/json' }
+        });
         const json = await res.json();
+        const ok = json.success || json.ok;
         if (msg) {
-          msg.textContent = json.message || (json.success ? 'Enviado' : 'Error');
-          msg.style.color = json.success ? '#2e7d32' : '#c62828';
+          msg.textContent = json.message || (ok ? 'Enviado' : (json.error || 'Error'));
+          msg.style.color = ok ? '#2e7d32' : '#c62828';
         }
-        if (json.success) {
+        if (ok) {
           form.reset();
           setTimeout(() => { window.location.href = 'gracias.html'; }, 1200);
         }
