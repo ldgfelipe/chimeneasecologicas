@@ -84,7 +84,20 @@ function db_last_error() {
     return '';
 }
 
-/** Crea las tablas si no existen. Devuelve array('ok'=>bool,'msg'=>string). */
+/** Verifica si una columna existe en una tabla. */
+function db_column_exists($table, $column) {
+    $pdo = get_db();
+    if (!$pdo) return false;
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?");
+        $stmt->execute(array($table, $column));
+        return (int)$stmt->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+/** Crea las tablas si no existen y aplica migraciones de columnas. */
 function db_install() {
     $pdo = get_db();
     if (!$pdo) {
@@ -104,13 +117,31 @@ function db_install() {
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             category VARCHAR(100),
+            price VARCHAR(50) DEFAULT '',
             specs VARCHAR(255),
             description TEXT,
+            details TEXT,
             image VARCHAR(255),
+            images TEXT,
             link VARCHAR(255) DEFAULT '#contacto',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        return array('ok' => true, 'msg' => 'Tablas creadas correctamente.');
+        // Migraciones de columnas (para instalaciones previas)
+        $migrations = array(
+            'products' => array(
+                'price' => "ALTER TABLE products ADD COLUMN price VARCHAR(50) DEFAULT '' AFTER category",
+                'details' => "ALTER TABLE products ADD COLUMN details TEXT AFTER description",
+                'images' => "ALTER TABLE products ADD COLUMN images TEXT AFTER image",
+            ),
+        );
+        foreach ($migrations as $table => $cols) {
+            foreach ($cols as $col => $sql) {
+                if (!db_column_exists($table, $col)) {
+                    $pdo->exec($sql);
+                }
+            }
+        }
+        return array('ok' => true, 'msg' => 'Tablas creadas / actualizadas correctamente.');
     } catch (PDOException $e) {
         return array('ok' => false, 'msg' => 'Error SQL: ' . $e->getMessage());
     }
@@ -125,16 +156,32 @@ function sync_products_db($products) {
     $pdo = get_db();
     if (!$pdo) return false;
     try {
+        // Asegura que las columnas nuevas existan (migración transparente)
+        foreach (array('price', 'details', 'images') as $col) {
+            if (!db_column_exists('products', $col)) {
+                $map = array(
+                    'price' => "ALTER TABLE products ADD COLUMN price VARCHAR(50) DEFAULT '' AFTER category",
+                    'details' => "ALTER TABLE products ADD COLUMN details TEXT AFTER description",
+                    'images' => "ALTER TABLE products ADD COLUMN images TEXT AFTER image",
+                );
+                $pdo->exec($map[$col]);
+            }
+        }
         $pdo->exec("TRUNCATE TABLE products");
-        $stmt = $pdo->prepare("INSERT INTO products (id, name, category, specs, description, image, link) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO products (id, name, category, price, specs, description, details, image, images, link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         foreach ($products as $p) {
+            $imgs = isset($p['images']) && is_array($p['images']) ? $p['images'] : array();
+            if (empty($imgs) && !empty($p['image'])) $imgs = array($p['image']);
             $stmt->execute(array(
                 (isset($p['id']) && $p['id'] ? (int)$p['id'] : null),
                 $p['name'] ?? '',
                 $p['category'] ?? '',
+                $p['price'] ?? '',
                 $p['specs'] ?? '',
                 $p['description'] ?? '',
+                $p['details'] ?? '',
                 $p['image'] ?? '',
+                json_encode($imgs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 $p['link'] ?? '#contacto'
             ));
         }

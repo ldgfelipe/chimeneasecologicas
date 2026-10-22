@@ -8,10 +8,17 @@ $products = array();
 
 if ($pdo) {
     try {
-        $stmt = $pdo->query("SELECT id, name, category, specs, description, image, link FROM products ORDER BY id ASC");
+        $stmt = $pdo->query("SELECT id, name, category, price, specs, description, details, image, images, link FROM products ORDER BY id ASC");
         $products = $stmt->fetchAll();
         foreach ($products as &$row) {
             $row['id'] = (int)$row['id'];
+            // Decodifica la galería de imágenes (JSON) a array
+            if (!empty($row['images'])) {
+                $decoded = json_decode($row['images'], true);
+                $row['images'] = is_array($decoded) ? $decoded : array();
+            } else {
+                $row['images'] = !empty($row['image']) ? array($row['image']) : array();
+            }
         }
         unset($row);
     } catch (PDOException $e) {

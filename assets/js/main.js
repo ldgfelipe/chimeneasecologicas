@@ -21,7 +21,12 @@
   } catch(e){ console.warn('config load failed', e); }
 
   const cb = cfg.cacheBust ? '?v=' + cfg.cacheBust : '';
+  const PLACEHOLDER = 'assets/img/placeholder.jpg';
   const wa = (msg) => `https://wa.me/${cfg.whatsapp || '522220000000'}?text=${encodeURIComponent(msg || cfg.whatsappMessage || 'Hola')}`;
+  const prodImages = (p) => {
+    const imgs = (Array.isArray(p.images) && p.images.length) ? p.images : (p.image ? [p.image] : []);
+    return imgs.length ? imgs : [PLACEHOLDER];
+  };
 
   const setHref = (id, url) => { const el = document.getElementById(id); if (el && url) el.href = url; };
   const setSrc = (id, url) => { const el = document.getElementById(id); if (el && url) el.src = url + cb; };
@@ -123,22 +128,25 @@
     try {
       const res = await fetch('api/products.php');
       const products = await res.json();
-      grid.innerHTML = products.map(p => `
+      grid.innerHTML = products.map(p => {
+        const img = p.image || PLACEHOLDER;
+        return `
         <article class="product-card">
-          <img src="${p.image}${cb}" alt="${p.name}" loading="lazy">
+          <img src="${img}${cb}" alt="${p.name}" loading="lazy">
           <div class="pc-body">
             <span class="pc-cat">${p.category}</span>
             <h3>${p.name}</h3>
-            <p>${p.specs}</p>
+            ${p.price ? `<div class="pc-price">${p.price}</div>` : ''}
+            <p class="pc-specs">${p.specs}</p>
             <button class="btn btn-outline btn-sm open-modal" data-id="${p.id}">Ver detalle</button>
           </div>
         </article>
-      `).join('');
+      `;}).join('');
       window.__products = products;
       // Marquee
       const track = document.getElementById('marquee-track');
       if (track) {
-        const imgs = products.map(p => `<img src="${p.image}${cb}" alt="${p.name}" loading="lazy">`).join('');
+        const imgs = products.map(p => `<img src="${p.image || PLACEHOLDER}${cb}" alt="${p.name}" loading="lazy">`).join('');
         track.innerHTML = imgs + imgs;
       }
       document.querySelectorAll('.open-modal').forEach(btn => {
@@ -147,13 +155,22 @@
           const id = parseInt(btn.dataset.id);
           const p = (window.__products || []).find(x => x.id === id);
           if (!p) return;
-          document.getElementById('modal-img').src = p.image + cb;
-          document.getElementById('modal-img').alt = p.name;
+          // Gallery
+          const gal = document.getElementById('modal-gallery');
+          const imgs = prodImages(p);
+          gal.innerHTML = imgs.map(src => `<img src="${src}${cb}" alt="${p.name}" loading="lazy">`).join('');
+          if (imgs.length <= 1) gal.classList.add('single'); else gal.classList.remove('single');
           document.getElementById('modal-cat').textContent = p.category;
           document.getElementById('modal-title').textContent = p.name;
+          const priceEl = document.getElementById('modal-price');
+          priceEl.textContent = p.price || '';
+          priceEl.style.display = p.price ? '' : 'none';
           document.getElementById('modal-specs').textContent = p.specs;
           document.getElementById('modal-desc').textContent = p.description || '';
-          const waMsg = `Hola, me interesa información sobre ${p.name}`;
+          const detailsEl = document.getElementById('modal-details');
+          detailsEl.textContent = p.details || '';
+          detailsEl.style.display = p.details ? '' : 'none';
+          const waMsg = `Hola, me interesa información sobre ${p.name}${p.price ? ' (' + p.price + ')' : ''}`;
           document.getElementById('modal-wa').href = `https://wa.me/${cfg.whatsapp}?text=${encodeURIComponent(waMsg)}`;
           modal.classList.add('open');
         });

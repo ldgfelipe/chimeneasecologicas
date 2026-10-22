@@ -86,9 +86,21 @@ if ($pdo) {
     }
     // Load products from DB
     try {
-        $stmt = $pdo->query("SELECT id, name, category, specs, description, image, link FROM products ORDER BY id ASC");
+        $stmt = $pdo->query("SELECT id, name, category, price, specs, description, details, image, images, link FROM products ORDER BY id ASC");
         $dbProducts = $stmt->fetchAll();
-        if (!empty($dbProducts)) $products = $dbProducts;
+        if (!empty($dbProducts)) {
+            foreach ($dbProducts as &$dbp) {
+                $dbp['id'] = (int)$dbp['id'];
+                if (!empty($dbp['images'])) {
+                    $dec = json_decode($dbp['images'], true);
+                    $dbp['images'] = is_array($dec) ? $dec : array();
+                } else {
+                    $dbp['images'] = !empty($dbp['image']) ? array($dbp['image']) : array();
+                }
+            }
+            unset($dbp);
+            $products = $dbProducts;
+        }
     } catch (PDOException $e) {}
 } else {
     $subs = file_exists($subsFile) ? (json_decode(file_get_contents($subsFile), true) ?: array()) : array();
@@ -145,32 +157,47 @@ if (isset($_POST['add_product'])) {
         'id' => time(),
         'name' => trim($_POST['pname'] ?? ''),
         'category' => trim($_POST['pcat'] ?? ''),
+        'price' => trim($_POST['pprice'] ?? ''),
         'specs' => trim($_POST['pspecs'] ?? ''),
         'description' => trim($_POST['pdescription'] ?? ''),
+        'details' => trim($_POST['pdetails'] ?? ''),
         'image' => trim($_POST['pimage'] ?? ''),
+        'images' => array(),
         'link' => trim($_POST['plink'] ?? '#contacto'),
     );
     if ($np['name'] !== '') {
-        // handle image upload for product
-        if (isset($_FILES['pimgfile']) && $_FILES['pimgfile']['error'] === UPLOAD_ERR_OK) {
-            $tmp = $imgDir . '/tmp-' . time();
-            if (move_uploaded_file($_FILES['pimgfile']['tmp_name'], $tmp)) {
-                $filename = 'prod-' . time() . '.webp';
-                $dest = $imgDir . '/' . $filename;
-                if (convert_to_webp($tmp, $dest)) {
-                    @unlink($tmp);
-                    $np['image'] = 'assets/img/' . $filename;
-                } else {
-                    $ext = strtolower(pathinfo($_FILES['pimgfile']['name'], PATHINFO_EXTENSION));
-                    $filename = 'prod-' . time() . '.' . $ext;
-                    @rename($tmp, $imgDir . '/' . $filename);
-                    $np['image'] = 'assets/img/' . $filename;
+        // handle multiple image uploads for product
+        $uploaded = array();
+        if (!empty($_FILES['pimgfiles']) && is_array($_FILES['pimgfiles']['name'])) {
+            foreach ($_FILES['pimgfiles']['name'] as $i => $fname) {
+                if ($fname === '' || $_FILES['pimgfiles']['error'][$i] !== UPLOAD_ERR_OK) continue;
+                $tmp = $imgDir . '/tmp-' . time() . '-' . $i;
+                if (move_uploaded_file($_FILES['pimgfiles']['tmp_name'][$i], $tmp)) {
+                    $filename = 'prod-' . time() . '-' . $i . '.webp';
+                    $dest = $imgDir . '/' . $filename;
+                    if (convert_to_webp($tmp, $dest)) {
+                        @unlink($tmp);
+                        $uploaded[] = 'assets/img/' . $filename;
+                    } else {
+                        $ext = strtolower(pathinfo($fname, PATHINFO_EXTENSION));
+                        $filename = 'prod-' . time() . '-' . $i . '.' . $ext;
+                        @rename($tmp, $imgDir . '/' . $filename);
+                        $uploaded[] = 'assets/img/' . $filename;
+                    }
                 }
             }
+        }
+        if (!empty($uploaded)) {
+            $np['images'] = $uploaded;
+            $np['image'] = $uploaded[0];
+        } elseif (!empty($np['image'])) {
+            $np['images'] = array($np['image']);
         }
         $products[] = $np;
         file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         sync_products_db($products);
+        $cfg['cacheBust'] = (string)time();
+        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         $prodMsg = 'Producto agregado.';
     }
     $tab = 'products';
@@ -180,6 +207,8 @@ if (isset($_POST['delete_product'])) {
     $products = array_values(array_filter($products, function($p) use ($did){ return ($p['id'] ?? 0) != $did; }));
     file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     sync_products_db($products);
+    $cfg['cacheBust'] = (string)time();
+    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     $prodMsg = 'Producto eliminado.';
     $tab = 'products';
 }
@@ -189,32 +218,50 @@ if (isset($_POST['edit_product'])) {
         if (($p['id'] ?? 0) == $eid) {
             $p['name'] = trim($_POST['pname'] ?? $p['name']);
             $p['category'] = trim($_POST['pcat'] ?? $p['category']);
+            $p['price'] = trim($_POST['pprice'] ?? ($p['price'] ?? ''));
             $p['specs'] = trim($_POST['pspecs'] ?? $p['specs']);
             $p['description'] = trim($_POST['pdescription'] ?? ($p['description'] ?? ''));
+            $p['details'] = trim($_POST['pdetails'] ?? ($p['details'] ?? ''));
             $p['link'] = trim($_POST['plink'] ?? $p['link']);
-            if (isset($_FILES['pimgfile']) && $_FILES['pimgfile']['error'] === UPLOAD_ERR_OK) {
-                $tmp = $imgDir . '/tmp-' . time();
-                if (move_uploaded_file($_FILES['pimgfile']['tmp_name'], $tmp)) {
-                    $filename = 'prod-' . time() . '.webp';
-                    $dest = $imgDir . '/' . $filename;
-                    if (convert_to_webp($tmp, $dest)) {
-                        @unlink($tmp);
-                        $p['image'] = 'assets/img/' . $filename;
-                    } else {
-                        $ext = strtolower(pathinfo($_FILES['pimgfile']['name'], PATHINFO_EXTENSION));
-                        $filename = 'prod-' . time() . '.' . $ext;
-                        @rename($tmp, $imgDir . '/' . $filename);
-                        $p['image'] = 'assets/img/' . $filename;
+            if (!isset($p['images']) || !is_array($p['images'])) {
+                $p['images'] = !empty($p['image']) ? array($p['image']) : array();
+            }
+            if (!empty($_POST['pimage'])) $p['image'] = trim($_POST['pimage']);
+            // multiple image uploads
+            $uploaded = array();
+            if (!empty($_FILES['pimgfiles']) && is_array($_FILES['pimgfiles']['name'])) {
+                foreach ($_FILES['pimgfiles']['name'] as $i => $fname) {
+                    if ($fname === '' || $_FILES['pimgfiles']['error'][$i] !== UPLOAD_ERR_OK) continue;
+                    $tmp = $imgDir . '/tmp-' . time() . '-' . $i;
+                    if (move_uploaded_file($_FILES['pimgfiles']['tmp_name'][$i], $tmp)) {
+                        $filename = 'prod-' . time() . '-' . $i . '.webp';
+                        $dest = $imgDir . '/' . $filename;
+                        if (convert_to_webp($tmp, $dest)) {
+                            @unlink($tmp);
+                            $uploaded[] = 'assets/img/' . $filename;
+                        } else {
+                            $ext = strtolower(pathinfo($fname, PATHINFO_EXTENSION));
+                            $filename = 'prod-' . time() . '-' . $i . '.' . $ext;
+                            @rename($tmp, $imgDir . '/' . $filename);
+                            $uploaded[] = 'assets/img/' . $filename;
+                        }
                     }
                 }
+            }
+            if (!empty($uploaded)) {
+                $p['images'] = $uploaded;
+                $p['image'] = $uploaded[0];
             } elseif (!empty($_POST['pimage'])) {
-                $p['image'] = trim($_POST['pimage']);
+                if (!empty($p['images'])) $p['images'][0] = $p['image'];
+                else $p['images'] = array($p['image']);
             }
         }
     }
     unset($p);
     file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     sync_products_db($products);
+    $cfg['cacheBust'] = (string)time();
+    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     $prodMsg = 'Producto actualizado.';
     $tab = 'products';
 }
@@ -336,16 +383,27 @@ th{color:#7a3b1e;}
           <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Nombre</label>
           <input type="text" name="pname" required>
           <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Categoría</label>
-          <input type="text" name="pcat" placeholder="Ej. Chimenea de Etanol">
-          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Especificaciones</label>
-          <input type="text" name="pspecs" placeholder="Capacidad 1 L · Hasta 40 m²">
+          <input type="text" name="pcat" placeholder="Ej. Quemadores Bioetanol">
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Precio</label>
+          <input type="text" name="pprice" placeholder="Ej. $3,000">
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Especificaciones (resumen)</label>
+          <input type="text" name="pspecs" placeholder="Capacidad 1 litro · Calienta 40 m²">
         </div>
         <div>
-          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Descripción (se muestra en el modal)</label>
-          <textarea name="pdescription" rows="4" placeholder="Descripción del producto que verá el cliente..."></textarea>
-          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Imagen (URL o subir)</label>
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Descripción (modal)</label>
+          <textarea name="pdescription" rows="3" placeholder="Descripción del producto que verá el cliente..."></textarea>
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Detalles (una línea por dato)</label>
+          <textarea name="pdetails" rows="3" placeholder="Medidas: ...&#10;Capacidad: ...&#10;Incluye: ..."></textarea>
+        </div>
+      </div>
+      <div class="grid">
+        <div>
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Imagen principal (URL)</label>
           <input type="text" name="pimage" placeholder="assets/img/...">
-          <input type="file" name="pimgfile" accept="image/*">
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Subir imagen(es) — puedes elegir varias</label>
+          <input type="file" name="pimgfiles[]" accept="image/*" multiple>
+        </div>
+        <div>
           <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Enlace (botón Cotizar)</label>
           <input type="text" name="plink" value="#contacto">
         </div>
@@ -360,14 +418,14 @@ th{color:#7a3b1e;}
       <p>No hay productos.</p>
     <?php else: ?>
       <table>
-        <thead><tr><th>Img</th><th>Nombre</th><th>Categoría</th><th>Especificaciones</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Img</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Acciones</th></tr></thead>
         <tbody>
         <?php foreach ($products as $p): ?>
           <tr>
             <td><?php if (!empty($p['image'])): ?><img src="../<?php echo htmlspecialchars($p['image']); ?>" class="prod-img"><?php endif; ?></td>
             <td><?php echo htmlspecialchars($p['name']); ?></td>
             <td><?php echo htmlspecialchars($p['category']); ?></td>
-            <td><?php echo htmlspecialchars($p['specs']); ?></td>
+            <td><?php echo htmlspecialchars($p['price'] ?? ''); ?></td>
             <td style="white-space:nowrap;">
               <button type="button" onclick="document.getElementById('edit-<?php echo (int)$p['id']; ?>').style.display = document.getElementById('edit-<?php echo (int)$p['id']; ?>').style.display === 'none' ? 'block' : 'none';" style="background:#5b7c99;padding:6px 12px;font-size:.75rem;">Editar</button>
               <form method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar este producto?');">
@@ -387,15 +445,23 @@ th{color:#7a3b1e;}
                       <input type="text" name="pname" value="<?php echo htmlspecialchars($p['name']); ?>">
                       <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Categoría</label>
                       <input type="text" name="pcat" value="<?php echo htmlspecialchars($p['category'] ?? ''); ?>">
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Precio</label>
+                      <input type="text" name="pprice" value="<?php echo htmlspecialchars($p['price'] ?? ''); ?>">
                       <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Especificaciones</label>
                       <input type="text" name="pspecs" value="<?php echo htmlspecialchars($p['specs'] ?? ''); ?>">
                     </div>
                     <div>
                       <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Descripción</label>
-                      <textarea name="pdescription" rows="4"><?php echo htmlspecialchars($p['description'] ?? ''); ?></textarea>
-                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Imagen (URL)</label>
+                      <textarea name="pdescription" rows="3"><?php echo htmlspecialchars($p['description'] ?? ''); ?></textarea>
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Detalles</label>
+                      <textarea name="pdetails" rows="3"><?php echo htmlspecialchars($p['details'] ?? ''); ?></textarea>
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Imagen principal (URL)</label>
                       <input type="text" name="pimage" value="<?php echo htmlspecialchars($p['image'] ?? ''); ?>">
-                      <input type="file" name="pimgfile" accept="image/*">
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Reemplazar imágenes (elige varias)</label>
+                      <input type="file" name="pimgfiles[]" accept="image/*" multiple>
+                      <?php if (!empty($p['images'])): ?>
+                        <p style="font-size:.75rem;color:#6b5a52;margin-top:6px;">Imágenes actuales: <?php echo htmlspecialchars(implode(', ', $p['images'])); ?></p>
+                      <?php endif; ?>
                     </div>
                   </div>
                   <button type="submit" name="edit_product">Guardar cambios</button>
