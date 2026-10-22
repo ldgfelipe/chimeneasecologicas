@@ -27,6 +27,7 @@
     const imgs = (Array.isArray(p.images) && p.images.length) ? p.images : (p.image ? [p.image] : []);
     return imgs.length ? imgs : [PLACEHOLDER];
   };
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const setHref = (id, url) => { const el = document.getElementById(id); if (el && url) el.href = url; };
   const setSrc = (id, url) => { const el = document.getElementById(id); if (el && url) el.src = url + cb; };
@@ -157,8 +158,9 @@
       const products = await res.json();
       grid.innerHTML = products.map(p => {
         const img = p.image || PLACEHOLDER;
+        const searchText = esc(`${p.name} ${p.category} ${p.specs} ${p.price}`).toLowerCase();
         return `
-        <article class="product-card">
+        <article class="product-card" data-search="${searchText}">
           <img src="${img}${cb}" alt="${p.name}" loading="lazy">
           <div class="pc-body">
             <span class="pc-cat">${p.category}</span>
@@ -213,6 +215,43 @@
           modal.classList.add('open');
         });
       });
+      // Búsqueda / filtro reactivo del catálogo
+      const searchInput = document.getElementById('product-search');
+      const searchClear = document.getElementById('search-clear');
+      if (searchInput) {
+        const filterProducts = () => {
+          const q = searchInput.value.trim().toLowerCase();
+          const cards = grid.querySelectorAll('.product-card');
+          let visible = 0;
+          cards.forEach(card => {
+            const text = (card.getAttribute('data-search') || '').toLowerCase();
+            const show = !q || text.indexOf(q) !== -1;
+            card.style.display = show ? '' : 'none';
+            if (show) visible++;
+          });
+          if (searchClear) searchClear.style.display = q ? '' : 'none';
+          let empty = document.getElementById('catalog-empty');
+          if (visible === 0) {
+            if (!empty) {
+              empty = document.createElement('p');
+              empty.id = 'catalog-empty';
+              empty.textContent = 'No se encontraron productos.';
+              grid.parentNode.appendChild(empty);
+            }
+            empty.style.display = '';
+          } else if (empty) {
+            empty.style.display = 'none';
+          }
+        };
+        searchInput.addEventListener('input', filterProducts);
+        if (searchClear) {
+          searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            filterProducts();
+            searchInput.focus();
+          });
+        }
+      }
     } catch(e) {
       console.warn('products load failed', e);
       grid.innerHTML = '<p style="text-align:center;color:#6b5a52;">No se pudieron cargar los productos.</p>';
