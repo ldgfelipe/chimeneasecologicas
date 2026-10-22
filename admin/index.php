@@ -71,8 +71,28 @@ if (empty($_SESSION['auth'])) {
 }
 
 $cfg = json_decode(file_get_contents($configFile), true) ?: array();
-$subs = file_exists($subsFile) ? (json_decode(file_get_contents($subsFile), true) ?: array()) : array();
+$subs = array();
 $products = file_exists($prodFile) ? (json_decode(file_get_contents($prodFile), true) ?: array()) : array();
+
+// Try database first
+require __DIR__ . '/../api/db.php';
+$pdo = get_db();
+if ($pdo) {
+    try {
+        $stmt = $pdo->query("SELECT * FROM submissions ORDER BY id DESC LIMIT 50");
+        $subs = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        $subs = file_exists($subsFile) ? (json_decode(file_get_contents($subsFile), true) ?: array()) : array();
+    }
+    // Load products from DB
+    try {
+        $stmt = $pdo->query("SELECT id, name, category, specs, description, image, link FROM products ORDER BY id ASC");
+        $dbProducts = $stmt->fetchAll();
+        if (!empty($dbProducts)) $products = $dbProducts;
+    } catch (PDOException $e) {}
+} else {
+    $subs = file_exists($subsFile) ? (json_decode(file_get_contents($subsFile), true) ?: array()) : array();
+}
 $tab = $_GET['tab'] ?? 'config';
 $saved = false;
 $uploaded = false;
@@ -126,6 +146,7 @@ if (isset($_POST['add_product'])) {
         'name' => trim($_POST['pname'] ?? ''),
         'category' => trim($_POST['pcat'] ?? ''),
         'specs' => trim($_POST['pspecs'] ?? ''),
+        'description' => trim($_POST['pdescription'] ?? ''),
         'image' => trim($_POST['pimage'] ?? ''),
         'link' => trim($_POST['plink'] ?? '#contacto'),
     );
@@ -149,6 +170,7 @@ if (isset($_POST['add_product'])) {
         }
         $products[] = $np;
         file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        sync_products_db($products);
         $prodMsg = 'Producto agregado.';
     }
     $tab = 'products';
@@ -157,6 +179,7 @@ if (isset($_POST['delete_product'])) {
     $did = (int)($_POST['delete_id'] ?? 0);
     $products = array_values(array_filter($products, function($p) use ($did){ return ($p['id'] ?? 0) != $did; }));
     file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    sync_products_db($products);
     $prodMsg = 'Producto eliminado.';
     $tab = 'products';
 }
@@ -167,6 +190,7 @@ if (isset($_POST['edit_product'])) {
             $p['name'] = trim($_POST['pname'] ?? $p['name']);
             $p['category'] = trim($_POST['pcat'] ?? $p['category']);
             $p['specs'] = trim($_POST['pspecs'] ?? $p['specs']);
+            $p['description'] = trim($_POST['pdescription'] ?? ($p['description'] ?? ''));
             $p['link'] = trim($_POST['plink'] ?? $p['link']);
             if (isset($_FILES['pimgfile']) && $_FILES['pimgfile']['error'] === UPLOAD_ERR_OK) {
                 $tmp = $imgDir . '/tmp-' . time();
@@ -190,8 +214,24 @@ if (isset($_POST['edit_product'])) {
     }
     unset($p);
     file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    sync_products_db($products);
     $prodMsg = 'Producto actualizado.';
     $tab = 'products';
+}
+// --- Base de datos ---
+$dbMsg = '';
+$dbOk = false;
+if (isset($_POST['install_db'])) {
+    $res = db_install();
+    $dbMsg = $res['msg'];
+    $dbOk = $res['ok'];
+    if ($dbOk) sync_products_db($products);
+    $tab = 'database';
+}
+if (isset($_POST['migrate_db'])) {
+    $dbMsg = sync_products_db($products) ? ('Productos sincronizados con la base de datos (' . count($products) . ').') : 'No se pudo sincronizar.';
+    $dbOk = db_available();
+    $tab = 'database';
 }
 ?>
 <!DOCTYPE html>
@@ -215,6 +255,7 @@ th{color:#7a3b1e;}
 .upload-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;align-items:start;}
 .alert{padding:12px;border-radius:10px;margin-bottom:16px;}
 .alert-ok{background:#e8f5e9;color:#2e7d32;}
+.alert-err{background:#fdecea;color:#c62828;}
 .prod-img{width:60px;height:45px;object-fit:cover;border-radius:6px;}
 @media(max-width:800px){.grid,.upload-row{grid-template-columns:1fr;}}
 </style></head>
@@ -231,6 +272,7 @@ th{color:#7a3b1e;}
     <a class="tab <?php echo $tab==='products'?'active':''; ?>" href="?tab=products">Productos</a>
     <a class="tab <?php echo $tab==='forms'?'active':''; ?>" href="?tab=forms">Formularios</a>
     <a class="tab <?php echo $tab==='analytics'?'active':''; ?>" href="?tab=analytics">Analytics y GBP</a>
+    <a class="tab <?php echo $tab==='database'?'active':''; ?>" href="?tab=database">Base de datos</a>
   </div>
 
   <?php if ($saved) echo '<div class="alert alert-ok">Configuración guardada.</div>'; ?>
@@ -299,6 +341,8 @@ th{color:#7a3b1e;}
           <input type="text" name="pspecs" placeholder="Capacidad 1 L · Hasta 40 m²">
         </div>
         <div>
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Descripción (se muestra en el modal)</label>
+          <textarea name="pdescription" rows="4" placeholder="Descripción del producto que verá el cliente..."></textarea>
           <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Imagen (URL o subir)</label>
           <input type="text" name="pimage" placeholder="assets/img/...">
           <input type="file" name="pimgfile" accept="image/*">
@@ -324,11 +368,39 @@ th{color:#7a3b1e;}
             <td><?php echo htmlspecialchars($p['name']); ?></td>
             <td><?php echo htmlspecialchars($p['category']); ?></td>
             <td><?php echo htmlspecialchars($p['specs']); ?></td>
-            <td>
+            <td style="white-space:nowrap;">
+              <button type="button" onclick="document.getElementById('edit-<?php echo (int)$p['id']; ?>').style.display = document.getElementById('edit-<?php echo (int)$p['id']; ?>').style.display === 'none' ? 'block' : 'none';" style="background:#5b7c99;padding:6px 12px;font-size:.75rem;">Editar</button>
               <form method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar este producto?');">
                 <input type="hidden" name="delete_id" value="<?php echo (int)$p['id']; ?>">
                 <button type="submit" name="delete_product" style="background:#c62828;padding:6px 12px;font-size:.75rem;">Eliminar</button>
               </form>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="5" style="padding:0;">
+              <div id="edit-<?php echo (int)$p['id']; ?>" style="display:none;background:#f8f4ef;padding:14px;border-radius:10px;margin-bottom:12px;">
+                <form method="post" enctype="multipart/form-data">
+                  <input type="hidden" name="edit_id" value="<?php echo (int)$p['id']; ?>">
+                  <div class="grid">
+                    <div>
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Nombre</label>
+                      <input type="text" name="pname" value="<?php echo htmlspecialchars($p['name']); ?>">
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Categoría</label>
+                      <input type="text" name="pcat" value="<?php echo htmlspecialchars($p['category'] ?? ''); ?>">
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Especificaciones</label>
+                      <input type="text" name="pspecs" value="<?php echo htmlspecialchars($p['specs'] ?? ''); ?>">
+                    </div>
+                    <div>
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Descripción</label>
+                      <textarea name="pdescription" rows="4"><?php echo htmlspecialchars($p['description'] ?? ''); ?></textarea>
+                      <label style="font-size:.75rem;text-transform:uppercase;color:#6b5a52;font-weight:600;">Imagen (URL)</label>
+                      <input type="text" name="pimage" value="<?php echo htmlspecialchars($p['image'] ?? ''); ?>">
+                      <input type="file" name="pimgfile" accept="image/*">
+                    </div>
+                  </div>
+                  <button type="submit" name="edit_product">Guardar cambios</button>
+                </form>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -341,6 +413,7 @@ th{color:#7a3b1e;}
   <div class="card">
     <h2>Formularios recibidos</h2>
     <p>Total: <?php echo count($subs); ?></p>
+    <p style="margin-bottom:12px;"><a href="export.php" style="font-weight:600;color:#7a3b1e;">⬇ Descargar CSV (Excel)</a></p>
     <?php if (empty($subs)): ?>
       <p>No hay envíos aún.</p>
     <?php else: ?>
@@ -370,6 +443,59 @@ th{color:#7a3b1e;}
     <p style="font-size:.85rem;color:#6b5a52;margin-top:12px;">Para medir visitas, configura tu ID de GA4 en la pestaña de Configuración y descomenta el script de gtag en index.html.</p>
     <h3 style="margin-top:20px;">Resumen de formularios</h3>
     <p>Total de envíos: <strong><?php echo count($subs); ?></strong></p>
+  </div>
+
+  <?php elseif ($tab === 'database'): ?>
+  <div class="card">
+    <h2>Base de datos (MySQL)</h2>
+    <?php
+      $conn = db_available();
+      $server = db_server();
+      $counts = array('products' => '—', 'submissions' => '—');
+      if ($conn) {
+          foreach (array_keys($counts) as $t) {
+              try { $counts[$t] = $pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn(); }
+              catch (PDOException $e) { $counts[$t] = 'error'; }
+          }
+      }
+    ?>
+    <p><strong>Estado:</strong>
+      <?php if ($conn): ?>
+        <span style="color:#2e7d32;font-weight:600;">Conectada</span>
+        <?php if ($server): $ver = $server->query('SELECT VERSION()')->fetchColumn(); ?> &middot; MySQL <?php echo htmlspecialchars($ver); ?><?php endif; ?>
+      <?php else: ?>
+        <span style="color:#c62828;font-weight:600;">Sin conexión</span>
+        <br><small style="color:#6b5a52;"><?php echo htmlspecialchars(db_last_error()); ?></small>
+      <?php endif; ?>
+    </p>
+    <p><strong>Base de datos:</strong> <code><?php echo htmlspecialchars(DB_NAME); ?></code></p>
+    <p><strong>Registros:</strong> productos = <?php echo htmlspecialchars((string)$counts['products']); ?> &middot; envíos = <?php echo htmlspecialchars((string)$counts['submissions']); ?></p>
+
+    <?php if ($dbMsg): ?>
+      <div class="alert <?php echo $dbOk ? 'alert-ok' : 'alert-err'; ?>"><?php echo htmlspecialchars($dbMsg); ?></div>
+    <?php endif; ?>
+
+    <form method="post" style="display:inline-block;margin-right:8px;">
+      <input type="hidden" name="install_db" value="1">
+      <button type="submit">Crear tablas / Base de datos</button>
+    </form>
+    <form method="post" style="display:inline-block;">
+      <input type="hidden" name="migrate_db" value="1">
+      <button type="submit">Sincronizar productos a la BD</button>
+    </form>
+
+    <h3 style="margin-top:24px;">Cómo configurarlo en tu hosting</h3>
+    <ol style="font-size:.9rem;color:#6b5a52;line-height:1.7;">
+      <li>En cPanel abre <strong>MySQL Databases</strong> y crea una base de datos (ej. <code>usuario_chimeneas</code>) y un usuario con todos los permisos.</li>
+      <li>Edita el archivo <code>api/db.php</code> con el host, nombre de BD, usuario y contraseña.</li>
+      <li>Vuelve aquí y presiona <strong>Crear tablas / Base de datos</strong>.</li>
+      <li>Presiona <strong>Sincronizar productos a la BD</strong> para copiar los productos actuales.</li>
+      <li>Si tu hosting usa un prefijo de usuario (ej. <code>usuario_</code>), el nombre real de la BD será <code>usuario_chimeneas</code>. Puedes dejar el prefijo dentro de la constante <code>DB_NAME</code>.</li>
+    </ol>
+    <p style="font-size:.85rem;color:#6b5a52;background:#f3ede4;padding:12px;border-radius:10px;">
+      <strong>Nota:</strong> Si el hosting no soporta PHP/MySQL, el sitio sigue funcionando con los archivos JSON
+      (<code>config.json</code> y <code>data/products.json</code>). La base de datos es una capa opcional.
+    </p>
   </div>
   <?php endif; ?>
 </div>

@@ -17,7 +17,6 @@ if ($name === '' || $email === '' || $message === '' || !filter_var($email, FILT
     exit;
 }
 
-// Load config
 $cfg = json_decode(file_get_contents(__DIR__ . '/../config.json'), true);
 $to = $cfg['email'] ?? 'hola@chimeneasecologicas.com';
 $subject = "Nueva cotización de $name";
@@ -26,22 +25,38 @@ $headers = "From: noreply@chimeneasecologicas.com.mx\r\nReply-To: $email\r\n";
 
 $sent = @mail($to, $subject, $body, $headers);
 
-// Store submission
-$dir = __DIR__ . '/../data';
-if (!is_dir($dir)) mkdir($dir, 0755, true);
-$file = $dir . '/submissions.json';
-$subs = array();
-if (file_exists($file)) {
-    $subs = json_decode(file_get_contents($file), true) ?: array();
+// Save to database if available
+require __DIR__ . '/db.php';
+$pdo = get_db();
+$savedDb = false;
+if ($pdo) {
+    try {
+        $stmt = $pdo->prepare("INSERT INTO submissions (name, email, phone, message, sent) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute(array($name, $email, $phone, $message, $sent ? 1 : 0));
+        $savedDb = true;
+    } catch (PDOException $e) {
+        $savedDb = false;
+    }
 }
-$subs[] = array(
-    'date' => date('Y-m-d H:i:s'),
-    'name' => $name,
-    'email' => $email,
-    'phone' => $phone,
-    'message' => $message,
-    'sent' => $sent,
-);
-file_put_contents($file, json_encode($subs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+// Fallback to JSON
+if (!$savedDb) {
+    $dir = __DIR__ . '/../data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    $file = $dir . '/submissions.json';
+    $subs = array();
+    if (file_exists($file)) {
+        $subs = json_decode(file_get_contents($file), true) ?: array();
+    }
+    $subs[] = array(
+        'date' => date('Y-m-d H:i:s'),
+        'name' => $name,
+        'email' => $email,
+        'phone' => $phone,
+        'message' => $message,
+        'sent' => $sent,
+    );
+    file_put_contents($file, json_encode($subs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
 
 echo json_encode(array('success'=>true,'message'=>'¡Gracias! Tu mensaje fue enviado. Te contactaremos pronto.'));

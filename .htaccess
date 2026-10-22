@@ -16,6 +16,26 @@
   </IfModule>
 </FilesMatch>
 
+# Bloquear credenciales de base de datos y utilerias internas
+<FilesMatch "db-credentials\.php|db\.php$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+<FilesMatch "^(install|migrate)\.php$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
 # Security headers
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"

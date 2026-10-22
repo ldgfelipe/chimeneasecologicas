@@ -1,6 +1,7 @@
 # Sensitive
 admin/.password
 data/submissions.json
+api/db-credentials.php
 
 # OS / editor
 .DS_Store

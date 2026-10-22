@@ -1,6 +1,29 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-$file = dirname(__DIR__) . '/data/products.json';
-if (!file_exists($file)) { echo json_encode(array()); exit; }
-echo file_get_contents($file);
+
+require __DIR__ . '/db.php';
+$pdo = get_db();
+$products = array();
+
+if ($pdo) {
+    try {
+        $stmt = $pdo->query("SELECT id, name, category, specs, description, image, link FROM products ORDER BY id ASC");
+        $products = $stmt->fetchAll();
+        foreach ($products as &$row) {
+            $row['id'] = (int)$row['id'];
+        }
+        unset($row);
+    } catch (PDOException $e) {
+        $products = array();
+    }
+}
+
+if (empty($products)) {
+    $file = dirname(__DIR__) . '/data/products.json';
+    if (file_exists($file)) {
+        $products = json_decode(file_get_contents($file), true) ?: array();
+    }
+}
+
+echo json_encode($products, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
