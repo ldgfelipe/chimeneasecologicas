@@ -160,8 +160,10 @@
         const img = p.image || PLACEHOLDER;
         const priceNorm = String(p.price || '').toLowerCase().replace(/[^0-9a-z\s]/g, '');
         const searchText = esc(`${p.name} ${p.category} ${p.specs} ${p.price} ${priceNorm}`).toLowerCase();
+        const priceMatch = String(p.price || '').replace(/,/g, '').match(/\d+(\.\d+)?/);
+        const priceNum = priceMatch ? parseFloat(priceMatch[0]) : 0;
         return `
-        <article class="product-card" data-search="${searchText}" data-category="${esc(p.category)}">
+        <article class="product-card" data-search="${searchText}" data-category="${esc(p.category)}" data-price="${priceNum}" data-id="${p.id}">
           <img src="${img}${cb}" alt="${p.name}" loading="lazy">
           <div class="pc-body">
             <span class="pc-cat">${p.category}</span>
@@ -230,16 +232,29 @@
           modal.classList.add('open');
         });
       });
-      // Búsqueda / filtro reactivo del catálogo (texto + categoría)
+      // Búsqueda / filtro / ordenamiento del catálogo
       const searchInput = document.getElementById('product-search');
       const searchClear = document.getElementById('search-clear');
       const categorySel = document.getElementById('category-filter');
+      const sortSel = document.getElementById('sort-filter');
       if (searchInput) {
-        const filterProducts = () => {
+        const updateCatalog = () => {
+          // 1) Ordenar (mueve las tarjetas en el DOM)
+          if (sortSel && sortSel.value !== 'default') {
+            const cards = Array.from(grid.querySelectorAll('.product-card'));
+            cards.sort((a, b) => {
+              const pa = parseFloat(a.getAttribute('data-price') || '0');
+              const pb = parseFloat(b.getAttribute('data-price') || '0');
+              return sortSel.value === 'price-asc' ? pa - pb : pb - pa;
+            });
+            cards.forEach(c => grid.appendChild(c));
+          }
+          // 2) Filtrar (texto + categoría)
           const q = searchInput.value.trim().toLowerCase();
           const cat = categorySel ? categorySel.value : '';
           const catNorm = cat.toLowerCase();
           const cards = grid.querySelectorAll('.product-card');
+          const total = cards.length;
           let visible = 0;
           cards.forEach(card => {
             const text = (card.getAttribute('data-search') || '').toLowerCase();
@@ -249,7 +264,13 @@
             card.style.display = show ? '' : 'none';
             if (show) visible++;
           });
+          // 3) Contador de resultados
           if (searchClear) searchClear.style.display = q ? '' : 'none';
+          const countEl = document.getElementById('catalog-count');
+          if (countEl) {
+            countEl.textContent = (q || cat) ? ('Mostrando ' + visible + ' de ' + total + ' productos') : (total + ' productos');
+          }
+          // 4) Mensaje si no hay resultados
           let empty = document.getElementById('catalog-empty');
           if (visible === 0) {
             if (!empty) {
@@ -263,15 +284,18 @@
             empty.style.display = 'none';
           }
         };
-        searchInput.addEventListener('input', filterProducts);
-        if (categorySel) categorySel.addEventListener('change', filterProducts);
+        searchInput.addEventListener('input', updateCatalog);
+        if (categorySel) categorySel.addEventListener('change', updateCatalog);
+        if (sortSel) sortSel.addEventListener('change', updateCatalog);
         if (searchClear) {
           searchClear.addEventListener('click', () => {
             searchInput.value = '';
-            filterProducts();
+            updateCatalog();
             searchInput.focus();
           });
         }
+        // Inicializa el contador
+        updateCatalog();
       }
     } catch(e) {
       console.warn('products load failed', e);

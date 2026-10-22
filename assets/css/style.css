@@ -98,6 +98,7 @@ p { margin: 0 0 1em; }
 .catalog-filter select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--beige-soft); }
 .search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--beige-soft); color: var(--accent); font-size: 1rem; line-height: 1; cursor: pointer; transition: var(--transition); }
 .search-clear:hover { background: var(--beige); color: #fff; }
+.catalog-count { text-align: center; color: var(--muted); font-size: .9rem; margin: -16px 0 28px; min-height: 1.4em; }
 #catalog-empty { text-align: center; color: var(--muted); padding: 20px 0 40px; }
 .products-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 @media (max-width: 900px) { .products-grid { grid-template-columns: repeat(2, 1fr); } }
