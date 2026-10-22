@@ -65,7 +65,6 @@ if (empty($_SESSION['auth'])) {
         <input type="password" name="password" placeholder="Contraseña" required>
         <button type="submit" name="login">Entrar</button>
       </form>
-      <p style="font-size:.8rem;color:#6b5a52;margin-top:12px;">Contraseña por defecto: <code>admin123</code></p>
     </div></body></html>
     <?php exit;
 }
@@ -94,6 +93,28 @@ $tab = $_GET['tab'] ?? 'config';
 $saved = false;
 $uploaded = false;
 $prodMsg = '';
+$pwMsg = '';
+$pwErr = '';
+
+// Cambiar contraseña
+if (isset($_POST['change_password'])) {
+    $current = trim($_POST['current_password'] ?? '');
+    $new = $_POST['new_password'] ?? '';
+    $confirm = $_POST['confirm_password'] ?? '';
+    $hash = file_exists($passFile) ? trim(file_get_contents($passFile)) : '';
+    $validCurrent = $hash ? password_verify($current, $hash) : ($current === 'admin123');
+    if (!$validCurrent) {
+        $pwErr = 'La contraseña actual es incorrecta.';
+    } elseif (strlen($new) < 6) {
+        $pwErr = 'La nueva contraseña debe tener al menos 6 caracteres.';
+    } elseif ($new !== $confirm) {
+        $pwErr = 'Las contraseñas nuevas no coinciden.';
+    } else {
+        file_put_contents($passFile, password_hash($new, PASSWORD_DEFAULT));
+        $pwMsg = 'Contraseña actualizada correctamente.';
+    }
+    $tab = 'password';
+}
 
 // Save config
 if (isset($_POST['save_config'])) {
@@ -325,6 +346,7 @@ th{color:#7a3b1e;}
     <a class="tab <?php echo $tab==='forms'?'active':''; ?>" href="?tab=forms">Formularios</a>
     <a class="tab <?php echo $tab==='analytics'?'active':''; ?>" href="?tab=analytics">Analytics y GBP</a>
     <a class="tab <?php echo $tab==='database'?'active':''; ?>" href="?tab=database">Base de datos</a>
+    <a class="tab <?php echo $tab==='password'?'active':''; ?>" href="?tab=password">Contraseña</a>
   </div>
 
   <?php if ($saved) echo '<div class="alert alert-ok">Configuración guardada.</div>'; ?>
@@ -578,6 +600,24 @@ th{color:#7a3b1e;}
       productos y los envíos. Los archivos <code>config.json</code> y <code>data/products.json</code> solo se usan
       como respaldo de solo lectura si la BD no está disponible.
     </p>
+  </div>
+
+  <?php elseif ($tab === 'password'): ?>
+  <div class="card" style="max-width:480px;">
+    <h2>Cambiar contraseña</h2>
+    <?php if ($pwMsg) echo '<div class="alert alert-ok">'.htmlspecialchars($pwMsg).'</div>'; ?>
+    <?php if ($pwErr) echo '<div class="alert alert-err">'.htmlspecialchars($pwErr).'</div>'; ?>
+    <form method="post">
+      <input type="hidden" name="change_password" value="1">
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Contraseña actual</label>
+      <input type="password" name="current_password" required>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Nueva contraseña</label>
+      <input type="password" name="new_password" required>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Confirmar nueva contraseña</label>
+      <input type="password" name="confirm_password" required>
+      <button type="submit">Actualizar contraseña</button>
+    </form>
+    <p style="font-size:.85rem;color:#6b5a52;margin-top:12px;">La nueva contraseña debe tener al menos 6 caracteres.</p>
   </div>
   <?php endif; ?>
 </div>
