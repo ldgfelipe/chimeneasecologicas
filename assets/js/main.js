@@ -87,11 +87,13 @@
       e.preventDefault();
       const btn = form.querySelector('button[type="submit"]');
       btn.disabled = true;
-      const data = new FormData(form);
+      // Envía por GET (algunos hostings bloquean POST); guarda en la BD
+      const params = new URLSearchParams(new FormData(form));
+      const endpoint = cfg.formsEndpoint || '/api/contact.php';
+      const sep = endpoint.indexOf('?') !== -1 ? '&' : '?';
       try {
-        const res = await fetch(cfg.formsEndpoint || '/api/contact.php', {
-          method: 'POST',
-          body: data,
+        const res = await fetch(endpoint + sep + params.toString(), {
+          method: 'GET',
           headers: { 'Accept': 'application/json' }
         });
         let json = null;

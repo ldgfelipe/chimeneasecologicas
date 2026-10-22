@@ -9,14 +9,17 @@ function respond($ok, $msg) {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+// Acepta GET o POST (algunos hostings/WAF bloquean POST; usamos GET por defecto)
+if (!in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'), true)) {
     respond(false, 'Método no permitido');
 }
 
-$name = trim($_POST['name'] ?? '');
-$email = trim($_POST['email'] ?? '');
-$phone = trim($_POST['phone'] ?? '');
-$message = trim($_POST['message'] ?? '');
+$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
+
+$name = trim($input['name'] ?? '');
+$email = trim($input['email'] ?? '');
+$phone = trim($input['phone'] ?? '');
+$message = trim($input['message'] ?? '');
 
 if ($name === '' || $email === '' || $message === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     respond(false, 'Completa los campos requeridos.');
@@ -25,30 +28,20 @@ if ($name === '' || $email === '' || $message === '' || !filter_var($email, FILT
 try {
     require __DIR__ . '/db.php';
 
-    $cfg = db_load_settings();
-    if ($cfg === null) {
-        $file = __DIR__ . '/../config.json';
-        $cfg = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: array()) : array();
-    }
-    $to = $cfg['email'] ?? 'hola@chimeneasecologicas.com';
-    $subject = "Nueva cotización de $name";
-    $body = "Nombre: $name\nEmail: $email\nTeléfono: $phone\n\nMensaje:\n$message";
-    $headers = "From: noreply@chimeneasecologicas.com.mx\r\nReply-To: $email\r\n";
-
-    // 1) Guardar en la base de datos (fuente de verdad)
+    // Guarda el mensaje en la base de datos (fuente de verdad)
     $pdo = get_db();
     $savedDb = false;
     if ($pdo) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO submissions (name, email, phone, message, sent) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute(array($name, $email, $phone, $message, 0));
+            $stmt = $pdo->prepare("INSERT INTO submissions (name, email, phone, message, sent) VALUES (?, ?, ?, ?, 0)");
+            $stmt->execute(array($name, $email, $phone, $message));
             $savedDb = true;
         } catch (PDOException $e) {
             $savedDb = false;
         }
     }
 
-    // 2) Fallback a JSON solo si la BD no está disponible
+    // Respaldo a JSON solo si la BD no está disponible
     if (!$savedDb) {
         $dir = __DIR__ . '/../data';
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
@@ -61,13 +54,7 @@ try {
         @file_put_contents($file, json_encode($subs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
 
-    // 3) Enviar email (sin bloquear la respuesta)
-    $sent = @mail($to, $subject, $body, $headers);
-    if ($savedDb && $pdo) {
-        try { $pdo->prepare("UPDATE submissions SET sent = ? WHERE id = LAST_INSERT_ID()")->execute(array($sent ? 1 : 0)); } catch (PDOException $e) {}
-    }
-
-    respond(true, '¡Gracias! Tu mensaje fue enviado. Te contactaremos pronto.');
+    respond(true, '¡Gracias! Tu mensaje fue recibido. Te contactaremos pronto.');
 } catch (Throwable $e) {
     respond(false, 'Error del servidor: ' . $e->getMessage());
 }
