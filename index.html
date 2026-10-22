@@ -135,7 +135,7 @@
         <h2 class="section-title ">Contacto</h2>
         <p class="section-sub ">Solicita una cotización o agenda una visita al showroom.</p>
         <div class="contact-grid">
-          <form id="contact-form" class="contact-form" novalidate>
+          <form id="contact-form" class="contact-form" action="api/contact.php" method="get">
             <!-- Campos trampa invisibles (anti-spam): un bot los llena, el envío se descarta -->
             <div class="hp-field" aria-hidden="true">
               <input type="text" name="website" tabindex="-1" autocomplete="off">
@@ -245,7 +245,7 @@
 
   <a id="wa-float" href="#" class="wa-float" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>
 
-  <script src="assets/js/main.js?v=16" defer></script>
+  <script src="assets/js/main.js?v=17" defer></script>
   <!-- GA4 placeholder -->
   <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
 </body>

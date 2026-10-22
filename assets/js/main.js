@@ -79,45 +79,25 @@
   const nav = document.querySelector('.nav');
   if (toggle && nav) toggle.addEventListener('click', () => nav.classList.toggle('is-open'));
 
-  // Form handling
+  // Form handling: envío nativo (navegación) para pasar el reto anti-bot del hosting.
+  // Muestra el error devuelto por el servidor al redirigir de vuelta al formulario.
   const form = document.getElementById('contact-form');
   const msg = document.getElementById('form-msg');
   if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = form.querySelector('button[type="submit"]');
-      btn.disabled = true;
-      // Envía por GET (algunos hostings bloquean POST); guarda en la BD
-      const params = new URLSearchParams(new FormData(form));
-      const endpoint = cfg.formsEndpoint || '/api/contact.php';
-      const sep = endpoint.indexOf('?') !== -1 ? '&' : '?';
-      try {
-        const res = await fetch(endpoint + sep + params.toString(), {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-        let json = null;
-        try { json = await res.json(); } catch(e) { json = null; }
-        const ok = !!(json && (json.success || json.ok));
-        if (msg) {
-          if (json && json.message) {
-            msg.textContent = json.message;
-          } else if (!res.ok || !json) {
-            msg.textContent = 'Error del servidor (HTTP ' + res.status + ').';
-          } else {
-            msg.textContent = ok ? 'Enviado' : 'Error';
-          }
-          msg.style.color = ok ? '#2e7d32' : '#c62828';
-        }
-        if (ok) {
-          form.reset();
-          setTimeout(() => { window.location.href = 'gracias.html'; }, 1200);
-        }
-      } catch(err) {
-        if (msg) { msg.textContent = 'No se pudo conectar con el servidor. Intenta por WhatsApp.'; msg.style.color = '#c62828'; }
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('status') === 'error') {
+      const errMsg = urlParams.get('msg');
+      if (msg && errMsg) {
+        msg.textContent = decodeURIComponent(errMsg);
+        msg.style.color = '#c62828';
       }
-      btn.disabled = false;
-    });
+      const contacto = document.getElementById('contacto');
+      if (contacto) contacto.scrollIntoView();
+      // limpia la URL para no repetir el mensaje al recargar
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
   }
 
   // CAPTCHA matemático

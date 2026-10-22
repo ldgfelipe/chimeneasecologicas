@@ -4,7 +4,11 @@ header('Access-Control-Allow-Origin: *');
 header('Cache-Control: no-store');
 
 function respond($ok, $msg) {
-    echo json_encode(array('success' => (bool)$ok, 'message' => $msg), JSON_UNESCAPED_UNICODE);
+    if ($ok) {
+        header('Location: ../gracias.html');
+    } else {
+        header('Location: ../index.html?status=error&msg=' . urlencode($msg) . '#contacto');
+    }
     exit;
 }
 
