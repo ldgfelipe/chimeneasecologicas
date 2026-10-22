@@ -15,8 +15,8 @@ if (!in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'), true)) {
 
 $input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
 
-// 1) Honeypot (campo trampa invisible): si viene lleno, es un bot
-if (trim($input['website'] ?? '') !== '') {
+// 1) Honeypot (campos trampa invisibles): si un bot los llena, el envío se descarta (no se guarda)
+if (trim($input['website'] ?? '') !== '' || trim($input['company'] ?? '') !== '') {
     respond(false, 'No se pudo procesar tu solicitud.');
 }
 

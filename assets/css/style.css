@@ -124,8 +124,8 @@ p { margin: 0 0 1em; }
 .contact-info h3 { margin-bottom: 12px; }
 .contact-info p { margin-bottom: 8px; }
 
-/* Anti-spam (honeypot) */
-.hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+/* Anti-spam (honeypot): invisible y no enfocable para el usuario real */
+.hp-field { position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 
 /* Formulario: select, fecha, radios, checks y captcha */
 .contact-form select, .contact-form input[type="date"] { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 1rem; background: var(--bg); color: var(--text); }
