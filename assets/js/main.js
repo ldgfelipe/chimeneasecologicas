@@ -158,9 +158,10 @@
       const products = await res.json();
       grid.innerHTML = products.map(p => {
         const img = p.image || PLACEHOLDER;
-        const searchText = esc(`${p.name} ${p.category} ${p.specs} ${p.price}`).toLowerCase();
+        const priceNorm = String(p.price || '').toLowerCase().replace(/[^0-9a-z\s]/g, '');
+        const searchText = esc(`${p.name} ${p.category} ${p.specs} ${p.price} ${priceNorm}`).toLowerCase();
         return `
-        <article class="product-card" data-search="${searchText}">
+        <article class="product-card" data-search="${searchText}" data-category="${esc(p.category)}">
           <img src="${img}${cb}" alt="${p.name}" loading="lazy">
           <div class="pc-body">
             <span class="pc-cat">${p.category}</span>
@@ -181,6 +182,20 @@
           opt.value = p.name;
           opt.textContent = p.name;
           sel.appendChild(opt);
+        });
+      }
+      // Poblar el selector de categorías (filtro)
+      const catSel = document.getElementById('category-filter');
+      if (catSel) {
+        const cats = [];
+        products.forEach(p => {
+          if (p.category && cats.indexOf(p.category) === -1) cats.push(p.category);
+        });
+        cats.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          catSel.appendChild(opt);
         });
       }
       // Marquee
@@ -215,17 +230,22 @@
           modal.classList.add('open');
         });
       });
-      // Búsqueda / filtro reactivo del catálogo
+      // Búsqueda / filtro reactivo del catálogo (texto + categoría)
       const searchInput = document.getElementById('product-search');
       const searchClear = document.getElementById('search-clear');
+      const categorySel = document.getElementById('category-filter');
       if (searchInput) {
         const filterProducts = () => {
           const q = searchInput.value.trim().toLowerCase();
+          const cat = categorySel ? categorySel.value : '';
+          const catNorm = cat.toLowerCase();
           const cards = grid.querySelectorAll('.product-card');
           let visible = 0;
           cards.forEach(card => {
             const text = (card.getAttribute('data-search') || '').toLowerCase();
-            const show = !q || text.indexOf(q) !== -1;
+            const textMatch = !q || text.indexOf(q) !== -1;
+            const catMatch = !cat || (card.getAttribute('data-category') || '').toLowerCase() === catNorm;
+            const show = textMatch && catMatch;
             card.style.display = show ? '' : 'none';
             if (show) visible++;
           });
@@ -244,6 +264,7 @@
           }
         };
         searchInput.addEventListener('input', filterProducts);
+        if (categorySel) categorySel.addEventListener('change', filterProducts);
         if (searchClear) {
           searchClear.addEventListener('click', () => {
             searchInput.value = '';

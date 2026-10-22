@@ -90,9 +90,12 @@ p { margin: 0 0 1em; }
 .feature p { color: var(--muted); font-size: .92rem; }
 
 /* Products */
-.catalog-filter { position: relative; max-width: 460px; margin: 0 auto 36px; }
-.catalog-filter input { width: 100%; padding: 13px 44px 13px 20px; border: 1px solid var(--border); border-radius: 999px; font-family: inherit; font-size: 1rem; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-.catalog-filter input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--beige-soft); }
+.catalog-filter { display: flex; gap: 12px; max-width: 720px; margin: 0 auto 36px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.search-box { position: relative; flex: 1 1 300px; }
+.search-box input { width: 100%; padding: 13px 44px 13px 20px; border: 1px solid var(--border); border-radius: 999px; font-family: inherit; font-size: 1rem; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.search-box input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--beige-soft); }
+.catalog-filter select { flex: 0 1 240px; padding: 13px 20px; border: 1px solid var(--border); border-radius: 999px; font-family: inherit; font-size: .95rem; background: var(--surface); color: var(--text); box-shadow: var(--shadow); cursor: pointer; }
+.catalog-filter select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--beige-soft); }
 .search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--beige-soft); color: var(--accent); font-size: 1rem; line-height: 1; cursor: pointer; transition: var(--transition); }
 .search-clear:hover { background: var(--beige); color: #fff; }
 #catalog-empty { text-align: center; color: var(--muted); padding: 20px 0 40px; }
