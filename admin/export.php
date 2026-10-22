@@ -21,15 +21,19 @@ header('Content-Disposition: attachment; filename="envios-' . date('Y-m-d') . '.
 
 $out = fopen('php://output', 'w');
 fwrite($out, "\xEF\xBB\xBF"); // BOM para Excel
-fputcsv($out, array('Fecha', 'Nombre', 'Email', 'Telefono', 'Mensaje', 'Email enviado'));
+fputcsv($out, array('Fecha', 'Nombre', 'Email', 'Telefono', 'Producto', 'Interes', 'Fecha cita', 'Mensaje', 'Acepta privacidad', 'Acepta publicidad'));
 foreach ($subs as $s) {
     fputcsv($out, array(
         $s['date'] ?? '',
         $s['name'] ?? '',
         $s['email'] ?? '',
         $s['phone'] ?? '',
+        $s['product'] ?? '',
+        ($s['interest'] ?? '') === 'cita' ? 'Cita showroom' : 'Informacion',
+        $s['appointment_date'] ?? '',
         $s['message'] ?? '',
-        !empty($s['sent']) ? 'Si' : 'No',
+        !empty($s['consent_privacy']) ? 'Si' : 'No',
+        !empty($s['consent_ads']) ? 'Si' : 'No',
     ));
 }
 fclose($out);

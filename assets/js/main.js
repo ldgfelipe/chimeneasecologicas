@@ -120,6 +120,44 @@
     });
   }
 
+  // CAPTCHA matemático
+  const captchaRefresh = document.getElementById('captcha-refresh');
+  async function loadCaptcha() {
+    try {
+      const res = await fetch('api/captcha.php');
+      const c = await res.json();
+      document.getElementById('captcha-a').value = c.a;
+      document.getElementById('captcha-b').value = c.b;
+      document.getElementById('captcha-token').value = c.token;
+      document.getElementById('captcha-time').value = c.time;
+      document.getElementById('captcha-question').textContent = `¿Cuánto es ${c.a} + ${c.b}?`;
+      document.getElementById('captcha-answer').value = '';
+    } catch(e) {
+      document.getElementById('captcha-question').textContent = 'Verificación no disponible';
+    }
+  }
+  if (captchaRefresh) {
+    loadCaptcha();
+    captchaRefresh.addEventListener('click', loadCaptcha);
+  }
+
+  // Toggle interés (cita vs solo información)
+  const interestInputs = document.querySelectorAll('input[name="interest"]');
+  const dateGroup = document.getElementById('date-group');
+  const dateInput = document.getElementById('appointment-date');
+  function toggleDate() {
+    const checked = document.querySelector('input[name="interest"]:checked');
+    const isCita = checked && checked.value === 'cita';
+    if (dateGroup) dateGroup.style.display = isCita ? '' : 'none';
+    if (dateInput) {
+      if (isCita) dateInput.setAttribute('required', '');
+      else dateInput.removeAttribute('required');
+    }
+  }
+  interestInputs.forEach(r => r.addEventListener('change', toggleDate));
+  if (dateInput) dateInput.min = new Date().toISOString().split('T')[0];
+  toggleDate();
+
   // Modal
   const modal = document.getElementById('product-modal');
   const modalClose = document.getElementById('modal-close');
@@ -152,6 +190,17 @@
         </article>
       `;}).join('');
       window.__products = products;
+      // Poblar el listado de productos del formulario
+      const sel = document.getElementById('product-select');
+      if (sel) {
+        sel.innerHTML = '<option value="">Selecciona un producto…</option>';
+        products.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = p.name;
+          sel.appendChild(opt);
+        });
+      }
       // Marquee
       const track = document.getElementById('marquee-track');
       if (track) {

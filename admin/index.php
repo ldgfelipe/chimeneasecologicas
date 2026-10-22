@@ -489,14 +489,24 @@ th{color:#7a3b1e;}
       <p>No hay envíos aún.</p>
     <?php else: ?>
       <table>
-        <thead><tr><th>Fecha</th><th>Nombre</th><th>Email</th><th>Teléfono</th><th>Mensaje</th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Nombre</th><th>Contacto</th><th>Producto</th><th>Interés</th><th>Mensaje</th></tr></thead>
         <tbody>
         <?php foreach (array_reverse(array_slice($subs, -50)) as $s): ?>
           <tr>
-            <td><?php echo htmlspecialchars($s['date']); ?></td>
+            <td style="white-space:nowrap;"><?php echo htmlspecialchars($s['date']); ?></td>
             <td><?php echo htmlspecialchars($s['name']); ?></td>
-            <td><?php echo htmlspecialchars($s['email']); ?></td>
-            <td><?php echo htmlspecialchars($s['phone']); ?></td>
+            <td><?php echo htmlspecialchars($s['email']); ?><br><small style="color:#6b5a52;"><?php echo htmlspecialchars($s['phone']); ?></small></td>
+            <td><?php echo htmlspecialchars($s['product'] ?? '—'); ?></td>
+            <td>
+              <?php
+                $int = $s['interest'] ?? 'informacion';
+                echo $int === 'cita' ? '📅 Cita' : 'ℹ️ Información';
+                if ($int === 'cita' && !empty($s['appointment_date'])) echo '<br><small style="color:#6b5a52;">' . htmlspecialchars($s['appointment_date']) . '</small>';
+                $pc = !empty($s['consent_privacy']) ? 'Privacidad' : '';
+                $ac = !empty($s['consent_ads']) ? 'Publicidad' : '';
+                if ($pc || $ac) echo '<br><small style="color:#6b5a52;">' . htmlspecialchars(trim($pc . ($pc && $ac ? ' · ' : '') . $ac)) . '</small>';
+              ?>
+            </td>
             <td><?php echo htmlspecialchars(mb_substr($s['message'],0,80)); ?></td>
           </tr>
         <?php endforeach; ?>

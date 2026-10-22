@@ -14,6 +14,33 @@ if (!defined('DB_NAME')) define('DB_NAME', 'chimeneasecologicas_web');
 if (!defined('DB_USER')) define('DB_USER', 'root');
 if (!defined('DB_PASS')) define('DB_PASS', '');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
+if (!defined('CAPTCHA_SECRET')) define('CAPTCHA_SECRET', 'chm_ecol_captcha_2026_v2');
+
+/** Genera un reto CAPTCHA matemático (estateless, sin sesiones). */
+function captcha_generate() {
+    $a = rand(2, 9);
+    $b = rand(2, 9);
+    $sum = $a + $b;
+    $time = time();
+    $token = hash_hmac('sha256', $a . '|' . $b . '|' . $sum . '|' . $time, CAPTCHA_SECRET);
+    return array('a' => $a, 'b' => $b, 'token' => $token, 'time' => $time);
+}
+
+/**
+ * Verifica el CAPTCHA matemático.
+ * @return bool
+ */
+function captcha_verify($a, $b, $answer, $token, $time, $minSeconds = 3, $maxAge = 600) {
+    $sum = (int)$a + (int)$b;
+    if ((int)$answer !== $sum) return false;
+    $expected = hash_hmac('sha256', $a . '|' . $b . '|' . $sum . '|' . $time, CAPTCHA_SECRET);
+    if (!function_exists('hash_equals')) return false;
+    if (!hash_equals($expected, (string)$token)) return false;
+    $elapsed = time() - (int)$time;
+    if ($elapsed < $minSeconds) return false; // demasiado rápido (bot)
+    if ($elapsed > $maxAge) return false;     // expirado
+    return true;
+}
 
 /** Conexión al servidor MySQL sin seleccionar base de datos. */
 function db_server() {
@@ -110,7 +137,12 @@ function db_install() {
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) NOT NULL,
             phone VARCHAR(50),
+            product VARCHAR(255) DEFAULT '',
+            interest VARCHAR(50) DEFAULT 'informacion',
+            appointment_date VARCHAR(50) DEFAULT '',
             message TEXT,
+            consent_privacy TINYINT(1) DEFAULT 0,
+            consent_ads TINYINT(1) DEFAULT 0,
             sent TINYINT(1) DEFAULT 1
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         $pdo->exec("CREATE TABLE IF NOT EXISTS products (
@@ -136,6 +168,13 @@ function db_install() {
                 'price' => "ALTER TABLE products ADD COLUMN price VARCHAR(50) DEFAULT '' AFTER category",
                 'details' => "ALTER TABLE products ADD COLUMN details TEXT AFTER description",
                 'images' => "ALTER TABLE products ADD COLUMN images TEXT AFTER image",
+            ),
+            'submissions' => array(
+                'product' => "ALTER TABLE submissions ADD COLUMN product VARCHAR(255) DEFAULT '' AFTER phone",
+                'interest' => "ALTER TABLE submissions ADD COLUMN interest VARCHAR(50) DEFAULT 'informacion' AFTER product",
+                'appointment_date' => "ALTER TABLE submissions ADD COLUMN appointment_date VARCHAR(50) DEFAULT '' AFTER interest",
+                'consent_privacy' => "ALTER TABLE submissions ADD COLUMN consent_privacy TINYINT(1) DEFAULT 0 AFTER message",
+                'consent_ads' => "ALTER TABLE submissions ADD COLUMN consent_ads TINYINT(1) DEFAULT 0 AFTER consent_privacy",
             ),
         );
         foreach ($migrations as $table => $cols) {
