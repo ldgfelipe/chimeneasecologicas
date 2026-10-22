@@ -1,26 +1,23 @@
-# 🗄️ Guía: Conectar la base de datos MySQL
+# 🗄️ Guía: Base de datos MySQL (fuente de verdad)
 
-El sitio funciona **sin base de datos** (usa `config.json` y `data/products.json`).
-La base de datos es una **capa opcional** que agrega:
+La base de datos es la **fuente de verdad** para todo el sistema:
 
-- Historial de envíos del formulario de contacto (tabla `submissions`)
-- Productos almacenados en MySQL (tabla `products`)
-- Exportación de envíos a CSV/Excel
-- Mayor seguridad y escalabilidad
+- Configuración del sitio (tabla `settings`)
+- Productos (tabla `products`)
+- Envíos del formulario de contacto (tabla `submissions`)
 
-> Si tu hosting **no tiene PHP/MySQL**, el sitio sigue funcionando exactamente igual
-> con los archivos JSON. No es obligatorio configurar la BD.
+Los archivos `config.json`, `data/products.json` y `data/submissions.json` solo se
+usan como **respaldo de solo lectura**: si la base de datos no está disponible,
+el sitio cae automáticamente a esos archivos para no romperse.
 
 ---
 
 ## 1. Crear la base de datos en cPanel
 
 1. Entra a **cPanel** → **MySQL Databases**.
-2. En *Create New Database* escribe un nombre, por ejemplo `chimeneas`
-   → se creará `TUUSUARIO_chimeneas`.
-3. En *Create New User* crea un usuario, por ejemplo `chimeneas`
-   → será `TUUSUARIO_chimeneas`.
-4. En *Add User To Database* agrega el usuario a la base con **ALL PRIVILEGES**.
+2. Crea una base de datos (ej. `chimeneas`) → quedará `TUUSUARIO_chimeneas`.
+3. Crea un usuario (ej. `chimeneas`) → `TUUSUARIO_chimeneas`.
+4. Agrega el usuario a la base con **ALL PRIVILEGES**.
 5. Anota los datos:
 
    | Dato | Valor típico |
@@ -32,13 +29,9 @@ La base de datos es una **capa opcional** que agrega:
 
 ---
 
-## 2. Subir las credenciales
+## 2. Configurar credenciales
 
-Copia el archivo de ejemplo y complétalo:
-
-```bash
-cp api/db-credentials.example.php api/db-credentials.php
-```
+Crea el archivo `api/db-credentials.php` (copia del ejemplo):
 
 ```php
 <?php
@@ -48,18 +41,19 @@ define('DB_USER', 'TUUSUARIO_chimeneas');
 define('DB_PASS', 'TU_CONTRASEÑA');
 ```
 
-> `api/db-credentials.php` está en `.gitignore`, así que **nunca** se sube al repositorio
-> ni se expone públicamente (además está bloqueado por `.htaccess`).
+> `api/db-credentials.php` está en `.gitignore`, así que **nunca** se sube al
+> repositorio ni se expone públicamente (además está bloqueado por `.htaccess`).
 
 ---
 
-## 3. Crear las tablas
+## 3. Crear tablas y sembrar datos
 
-Desde el **panel de administración** del sitio:
+Desde el **panel de administración**:
 
 `https://tudominio.com/admin/` → pestaña **Base de datos** → **Crear tablas / Base de datos**
 
-Luego presiona **Sincronizar productos a la BD** para copiar los 8 productos actuales.
+Esto crea las tablas y siembra la configuración y los productos desde los JSON
+(una sola vez). Después presiona **Guardar todo en la BD** para asegurar la copia.
 
 ### Alternativa por SSH
 
@@ -75,14 +69,35 @@ En la pestaña **Base de datos** del admin verás:
 
 ```
 Estado: Conectada · MySQL 8.0.x
-Registros: productos = 8 · envíos = 0
+Registros: productos = 40 · envíos = 0 · configuraciones = 15
 ```
-
-Y la pestaña **Formularios** mostrará los envíos con opción de **descargar CSV**.
 
 ---
 
 ## Estructura de las tablas
+
+### `settings` (configuración clave/valor)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| skey | VARCHAR(100) PK | Clave (ej. `whatsapp`, `email`, `images`) |
+| svalue | TEXT | Valor (los arrays se guardan como JSON) |
+
+### `products`
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | INT | Identificador |
+| name | VARCHAR(255) | Nombre |
+| category | VARCHAR(100) | Categoría |
+| price | VARCHAR(50) | Precio |
+| specs | VARCHAR(255) | Especificaciones (resumen) |
+| description | TEXT | Descripción (modal) |
+| details | TEXT | Detalles técnicos (modal) |
+| image | VARCHAR(255) | Imagen principal |
+| images | TEXT | Galería (JSON array) |
+| link | VARCHAR(255) | Enlace del botón Cotizar |
+| created_at | DATETIME | Automático |
 
 ### `submissions`
 
@@ -96,33 +111,19 @@ Y la pestaña **Formularios** mostrará los envíos con opción de **descargar C
 | message | TEXT | Mensaje |
 | sent | TINYINT(1) | 1 = se envió email, 0 = solo se guardó |
 
-### `products`
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| id | INT | Mismo id que `data/products.json` |
-| name | VARCHAR(255) | Nombre |
-| category | VARCHAR(100) | Categoría |
-| specs | VARCHAR(255) | Especificaciones |
-| description | TEXT | Descripción (modal) |
-| image | VARCHAR(255) | Ruta de la imagen |
-| link | VARCHAR(255) | Enlace del botón Cotizar |
-| created_at | DATETIME | Automático |
-
 ---
 
 ## ⚙️ Comportamiento
 
-| Acción | Sin BD | Con BD |
-|--------|--------|--------|
-| Formulario de contacto | guarda en `data/submissions.json` + `mail()` | guarda en `submissions` + `mail()` |
-| Productos (frontend) | lee `data/products.json` | lee tabla `products` |
-| Productos (admin) | edita `data/products.json` | edita JSON **y** sincroniza a MySQL |
-| Envíos (admin) | lee `data/submissions.json` | lee tabla `submissions` |
+| Acción | Con BD | Sin BD (fallback) |
+|--------|--------|-------------------|
+| Guardar configuración (admin) | escribe en `settings` | escribe `config.json` |
+| Subir imagen de sección (admin) | escribe en `settings` | escribe `config.json` |
+| Agregar/editar/eliminar producto (admin) | escribe en `products` | escribe `data/products.json` |
+| Leer configuración (frontend) | lee `settings` | lee `config.json` |
+| Leer productos (frontend) | lee `products` | lee `data/products.json` |
+| Formulario de contacto | guarda en `submissions` + `mail()` | guarda en `data/submissions.json` + `mail()` |
 | Exportar CSV | ✅ | ✅ |
-
-Si algún día la BD deja de estar disponible, el sitio **cae automáticamente a los
-archivos JSON** sin romperse.
 
 ---
 

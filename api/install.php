@@ -64,15 +64,16 @@ td,th{padding:8px;border-bottom:1px solid #eee;text-align:left;}
   echo '<p><strong>Tablas:</strong> <span class="' . ($res['ok'] ? 'ok' : 'err') . '">' . htmlspecialchars($res['msg']) . '</span></p>';
 
   if ($pdo) {
-      // Migrar productos
-      $file = dirname(__DIR__) . '/data/products.json';
-      $products = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: array()) : array();
-      $ok = sync_products_db($products);
-      echo '<p><strong>Migración de productos:</strong> <span class="' . ($ok ? 'ok' : 'err') . '">' . ($ok ? count($products) . ' productos migrados' : 'falló') . '</span></p>';
+      // Sembrar configuración y productos desde los JSON (una sola vez)
+      $seed = db_seed();
+      echo '<p><strong>Siembra de datos:</strong> <span class="' . ($seed['ok'] ? 'ok' : 'err') . '">' . htmlspecialchars($seed['msg']);
+      if ($seed['products'] > 0) echo ' · ' . $seed['products'] . ' productos';
+      if ($seed['settings'] > 0) echo ' · ' . $seed['settings'] . ' configs';
+      echo '</span></p>';
 
       // Estado de tablas
       echo '<table><tr><th>Tabla</th><th>Registros</th></tr>';
-      foreach (array('products', 'submissions') as $t) {
+      foreach (array('products', 'submissions', 'settings') as $t) {
           try {
               $n = $pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn();
           } catch (PDOException $e) {

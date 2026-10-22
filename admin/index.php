@@ -70,41 +70,26 @@ if (empty($_SESSION['auth'])) {
     <?php exit;
 }
 
-$cfg = json_decode(file_get_contents($configFile), true) ?: array();
-$subs = array();
-$products = file_exists($prodFile) ? (json_decode(file_get_contents($prodFile), true) ?: array()) : array();
-
-// Try database first
 require __DIR__ . '/../api/db.php';
-$pdo = get_db();
-if ($pdo) {
-    try {
-        $stmt = $pdo->query("SELECT * FROM submissions ORDER BY id DESC LIMIT 50");
-        $subs = $stmt->fetchAll();
-    } catch (PDOException $e) {
-        $subs = file_exists($subsFile) ? (json_decode(file_get_contents($subsFile), true) ?: array()) : array();
-    }
-    // Load products from DB
-    try {
-        $stmt = $pdo->query("SELECT id, name, category, price, specs, description, details, image, images, link FROM products ORDER BY id ASC");
-        $dbProducts = $stmt->fetchAll();
-        if (!empty($dbProducts)) {
-            foreach ($dbProducts as &$dbp) {
-                $dbp['id'] = (int)$dbp['id'];
-                if (!empty($dbp['images'])) {
-                    $dec = json_decode($dbp['images'], true);
-                    $dbp['images'] = is_array($dec) ? $dec : array();
-                } else {
-                    $dbp['images'] = !empty($dbp['image']) ? array($dbp['image']) : array();
-                }
-            }
-            unset($dbp);
-            $products = $dbProducts;
-        }
-    } catch (PDOException $e) {}
-} else {
+
+// Configuración (BD como fuente de verdad; fallback de solo lectura a config.json)
+$cfg = db_load_settings();
+if ($cfg === null) {
+    $cfg = json_decode(file_get_contents($configFile), true) ?: array();
+}
+
+// Productos (BD como fuente de verdad; fallback a data/products.json)
+$products = db_load_products();
+if ($products === null) {
+    $products = file_exists($prodFile) ? (json_decode(file_get_contents($prodFile), true) ?: array()) : array();
+}
+
+// Envíos de formularios
+$subs = db_load_submissions();
+if ($subs === null) {
     $subs = file_exists($subsFile) ? (json_decode(file_get_contents($subsFile), true) ?: array()) : array();
 }
+
 $tab = $_GET['tab'] ?? 'config';
 $saved = false;
 $uploaded = false;
@@ -116,7 +101,10 @@ if (isset($_POST['save_config'])) {
         if (isset($_POST[$k])) $cfg[$k] = trim($_POST[$k]);
     }
     $cfg['cacheBust'] = (string)time();
-    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    if (!db_save_settings($cfg)) {
+        // Fallback: guarda en config.json solo si la BD no está disponible
+        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
     $saved = true;
     $tab = 'config';
 }
@@ -136,14 +124,16 @@ if (isset($_POST['upload_image']) && isset($_FILES['image']) && $_FILES['image']
                     if (!isset($cfg['images'])) $cfg['images'] = array();
                     $cfg['images'][$key] = 'assets/img/' . $filename;
                     $cfg['cacheBust'] = (string)time();
-                    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
                     $uploaded = true;
                 } else {
                     @rename($dest . '.tmp', $dest);
                     if (!isset($cfg['images'])) $cfg['images'] = array();
                     $cfg['images'][$key] = 'assets/img/' . $key . '.' . $ext;
-                    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                    $cfg['cacheBust'] = (string)time();
                     $uploaded = true;
+                }
+                if (!db_save_settings($cfg)) {
+                    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
                 }
             }
         }
@@ -194,10 +184,13 @@ if (isset($_POST['add_product'])) {
             $np['images'] = array($np['image']);
         }
         $products[] = $np;
-        file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-        sync_products_db($products);
+        if (!sync_products_db($products)) {
+            file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        }
         $cfg['cacheBust'] = (string)time();
-        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        if (!db_save_settings($cfg)) {
+            file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        }
         $prodMsg = 'Producto agregado.';
     }
     $tab = 'products';
@@ -205,10 +198,13 @@ if (isset($_POST['add_product'])) {
 if (isset($_POST['delete_product'])) {
     $did = (int)($_POST['delete_id'] ?? 0);
     $products = array_values(array_filter($products, function($p) use ($did){ return ($p['id'] ?? 0) != $did; }));
-    file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-    sync_products_db($products);
+    if (!sync_products_db($products)) {
+        file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
     $cfg['cacheBust'] = (string)time();
-    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    if (!db_save_settings($cfg)) {
+        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
     $prodMsg = 'Producto eliminado.';
     $tab = 'products';
 }
@@ -258,10 +254,13 @@ if (isset($_POST['edit_product'])) {
         }
     }
     unset($p);
-    file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-    sync_products_db($products);
+    if (!sync_products_db($products)) {
+        file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
     $cfg['cacheBust'] = (string)time();
-    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    if (!db_save_settings($cfg)) {
+        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
     $prodMsg = 'Producto actualizado.';
     $tab = 'products';
 }
@@ -272,11 +271,17 @@ if (isset($_POST['install_db'])) {
     $res = db_install();
     $dbMsg = $res['msg'];
     $dbOk = $res['ok'];
-    if ($dbOk) sync_products_db($products);
+    if ($dbOk) {
+        $seed = db_seed();
+        $dbMsg .= ' ' . $seed['msg'];
+        if ($seed['products'] > 0) $dbMsg .= " ({$seed['products']} productos sembrados)";
+        if ($seed['settings'] > 0) $dbMsg .= " ({$seed['settings']} configs sembradas)";
+    }
     $tab = 'database';
 }
 if (isset($_POST['migrate_db'])) {
-    $dbMsg = sync_products_db($products) ? ('Productos sincronizados con la base de datos (' . count($products) . ').') : 'No se pudo sincronizar.';
+    $ok = db_save_settings($cfg) && sync_products_db($products);
+    $dbMsg = $ok ? 'Configuración y productos guardados en la base de datos.' : 'No se pudo guardar en la base de datos.';
     $dbOk = db_available();
     $tab = 'database';
 }
@@ -517,10 +522,11 @@ th{color:#7a3b1e;}
     <?php
       $conn = db_available();
       $server = db_server();
-      $counts = array('products' => '—', 'submissions' => '—');
+      $counts = array('products' => '—', 'submissions' => '—', 'settings' => '—');
       if ($conn) {
+          $pdoTmp = get_db();
           foreach (array_keys($counts) as $t) {
-              try { $counts[$t] = $pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn(); }
+              try { $counts[$t] = $pdoTmp->query("SELECT COUNT(*) FROM `$t`")->fetchColumn(); }
               catch (PDOException $e) { $counts[$t] = 'error'; }
           }
       }
@@ -535,7 +541,7 @@ th{color:#7a3b1e;}
       <?php endif; ?>
     </p>
     <p><strong>Base de datos:</strong> <code><?php echo htmlspecialchars(DB_NAME); ?></code></p>
-    <p><strong>Registros:</strong> productos = <?php echo htmlspecialchars((string)$counts['products']); ?> &middot; envíos = <?php echo htmlspecialchars((string)$counts['submissions']); ?></p>
+    <p><strong>Registros:</strong> productos = <?php echo htmlspecialchars((string)$counts['products']); ?> &middot; envíos = <?php echo htmlspecialchars((string)$counts['submissions']); ?> &middot; configuraciones = <?php echo htmlspecialchars((string)$counts['settings']); ?></p>
 
     <?php if ($dbMsg): ?>
       <div class="alert <?php echo $dbOk ? 'alert-ok' : 'alert-err'; ?>"><?php echo htmlspecialchars($dbMsg); ?></div>
@@ -547,20 +553,20 @@ th{color:#7a3b1e;}
     </form>
     <form method="post" style="display:inline-block;">
       <input type="hidden" name="migrate_db" value="1">
-      <button type="submit">Sincronizar productos a la BD</button>
+      <button type="submit">Guardar todo en la BD</button>
     </form>
 
     <h3 style="margin-top:24px;">Cómo configurarlo en tu hosting</h3>
     <ol style="font-size:.9rem;color:#6b5a52;line-height:1.7;">
-      <li>En cPanel abre <strong>MySQL Databases</strong> y crea una base de datos (ej. <code>usuario_chimeneas</code>) y un usuario con todos los permisos.</li>
-      <li>Edita el archivo <code>api/db.php</code> con el host, nombre de BD, usuario y contraseña.</li>
+      <li>En cPanel abre <strong>MySQL Databases</strong> y crea una base de datos y un usuario con todos los permisos.</li>
+      <li>Crea el archivo <code>api/db-credentials.php</code> con el host, nombre de BD, usuario y contraseña (no se sube a git).</li>
       <li>Vuelve aquí y presiona <strong>Crear tablas / Base de datos</strong>.</li>
-      <li>Presiona <strong>Sincronizar productos a la BD</strong> para copiar los productos actuales.</li>
-      <li>Si tu hosting usa un prefijo de usuario (ej. <code>usuario_</code>), el nombre real de la BD será <code>usuario_chimeneas</code>. Puedes dejar el prefijo dentro de la constante <code>DB_NAME</code>.</li>
+      <li>Presiona <strong>Guardar todo en la BD</strong> para copiar la configuración y los productos actuales.</li>
     </ol>
     <p style="font-size:.85rem;color:#6b5a52;background:#f3ede4;padding:12px;border-radius:10px;">
-      <strong>Nota:</strong> Si el hosting no soporta PHP/MySQL, el sitio sigue funcionando con los archivos JSON
-      (<code>config.json</code> y <code>data/products.json</code>). La base de datos es una capa opcional.
+      <strong>Nota:</strong> La base de datos es la <strong>fuente de verdad</strong> para la configuración, los
+      productos y los envíos. Los archivos <code>config.json</code> y <code>data/products.json</code> solo se usan
+      como respaldo de solo lectura si la BD no está disponible.
     </p>
   </div>
   <?php endif; ?>

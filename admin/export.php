@@ -9,22 +9,11 @@ if (empty($_SESSION['auth'])) {
     exit;
 }
 
-$base = dirname(__DIR__);
-$subs = array();
-
 require __DIR__ . '/../api/db.php';
-$pdo = get_db();
-if ($pdo) {
-    try {
-        $stmt = $pdo->query("SELECT date, name, email, phone, message, sent FROM submissions ORDER BY id DESC");
-        $subs = $stmt->fetchAll();
-    } catch (PDOException $e) {
-        $subs = array();
-    }
-}
-if (empty($subs)) {
-    $file = $base . '/data/submissions.json';
-    if (file_exists($file)) $subs = json_decode(file_get_contents($file), true) ?: array();
+$subs = db_load_submissions();
+if ($subs === null) {
+    $file = dirname(__DIR__) . '/data/submissions.json';
+    $subs = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: array()) : array();
 }
 
 header('Content-Type: text/csv; charset=utf-8');

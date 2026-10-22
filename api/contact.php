@@ -17,7 +17,12 @@ if ($name === '' || $email === '' || $message === '' || !filter_var($email, FILT
     exit;
 }
 
-$cfg = json_decode(file_get_contents(__DIR__ . '/../config.json'), true);
+require __DIR__ . '/db.php';
+$cfg = db_load_settings();
+if ($cfg === null) {
+    $file = __DIR__ . '/../config.json';
+    $cfg = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: array()) : array();
+}
 $to = $cfg['email'] ?? 'hola@chimeneasecologicas.com';
 $subject = "Nueva cotización de $name";
 $body = "Nombre: $name\nEmail: $email\nTeléfono: $phone\n\nMensaje:\n$message";
@@ -25,8 +30,7 @@ $headers = "From: noreply@chimeneasecologicas.com.mx\r\nReply-To: $email\r\n";
 
 $sent = @mail($to, $subject, $body, $headers);
 
-// Save to database if available
-require __DIR__ . '/db.php';
+// Guarda en la base de datos (fuente de verdad)
 $pdo = get_db();
 $savedDb = false;
 if ($pdo) {

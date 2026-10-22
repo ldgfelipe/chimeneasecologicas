@@ -126,6 +126,10 @@ function db_install() {
             link VARCHAR(255) DEFAULT '#contacto',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
+            skey VARCHAR(100) PRIMARY KEY,
+            svalue TEXT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         // Migraciones de columnas (para instalaciones previas)
         $migrations = array(
             'products' => array(
@@ -188,5 +192,129 @@ function sync_products_db($products) {
         return true;
     } catch (PDOException $e) {
         return false;
+    }
+}
+
+/**
+ * Carga la configuración desde la tabla `settings`.
+ * @return array|null  array de config, o null si la BD no está disponible
+ */
+function db_load_settings() {
+    $pdo = get_db();
+    if (!$pdo) return null;
+    try {
+        $stmt = $pdo->query("SELECT skey, svalue FROM settings");
+        $out = array();
+        foreach ($stmt->fetchAll() as $r) {
+            $out[$r['skey']] = $r['svalue'];
+        }
+        if (empty($out)) return null; // tabla vacía -> el llamador usa el fallback JSON
+        if (isset($out['images'])) {
+            $dec = json_decode($out['images'], true);
+            $out['images'] = is_array($dec) ? $dec : array();
+        }
+        return $out;
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * Guarda la configuración en la tabla `settings` (clave/valor).
+ * Los valores que sean arrays (ej. images) se serializan a JSON.
+ * @param array $cfg
+ * @return bool
+ */
+function db_save_settings($cfg) {
+    $pdo = get_db();
+    if (!$pdo) return false;
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS settings (skey VARCHAR(100) PRIMARY KEY, svalue TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $stmt = $pdo->prepare("REPLACE INTO settings (skey, svalue) VALUES (?, ?)");
+        foreach ($cfg as $k => $v) {
+            if (is_array($v)) {
+                $v = json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            }
+            $stmt->execute(array($k, (string)$v));
+        }
+        return true;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+/**
+ * Carga los productos desde la tabla `products`.
+ * @return array|null  array de productos, o null si la BD no está disponible
+ */
+function db_load_products() {
+    $pdo = get_db();
+    if (!$pdo) return null;
+    try {
+        $stmt = $pdo->query("SELECT id, name, category, price, specs, description, details, image, images, link FROM products ORDER BY id ASC");
+        $rows = $stmt->fetchAll();
+        if (empty($rows)) return null; // tabla vacía -> el llamador usa el fallback JSON
+        foreach ($rows as &$r) {
+            $r['id'] = (int)$r['id'];
+            $dec = json_decode($r['images'] ?? '[]', true);
+            $r['images'] = is_array($dec) ? $dec : (empty($r['image']) ? array() : array($r['image']));
+        }
+        unset($r);
+        return $rows;
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * Carga los envíos del formulario desde la tabla `submissions`.
+ * @return array|null
+ */
+function db_load_submissions() {
+    $pdo = get_db();
+    if (!$pdo) return null;
+    try {
+        return $pdo->query("SELECT * FROM submissions ORDER BY id DESC LIMIT 200")->fetchAll();
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * Siembra la BD desde los archivos JSON (una sola vez, solo si la tabla está vacía).
+ * Devuelve array('ok'=>bool,'msg'=>string,'products'=>int,'settings'=>int).
+ */
+function db_seed() {
+    $pdo = get_db();
+    if (!$pdo) {
+        return array('ok' => false, 'msg' => 'Sin conexión a la base de datos', 'products' => 0, 'settings' => 0);
+    }
+    $seededProducts = 0;
+    $seededSettings = 0;
+    try {
+        $base = dirname(__DIR__);
+        // Productos
+        $n = (int)$pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
+        if ($n === 0) {
+            $file = $base . '/data/products.json';
+            if (file_exists($file)) {
+                $products = json_decode(file_get_contents($file), true) ?: array();
+                sync_products_db($products);
+                $seededProducts = count($products);
+            }
+        }
+        // Configuración
+        $n = (int)$pdo->query("SELECT COUNT(*) FROM settings")->fetchColumn();
+        if ($n === 0) {
+            $file = $base . '/config.json';
+            if (file_exists($file)) {
+                $cfg = json_decode(file_get_contents($file), true) ?: array();
+                db_save_settings($cfg);
+                $seededSettings = count($cfg);
+            }
+        }
+        return array('ok' => true, 'msg' => 'Datos sembrados correctamente.', 'products' => $seededProducts, 'settings' => $seededSettings);
+    } catch (PDOException $e) {
+        return array('ok' => false, 'msg' => 'Error: ' . $e->getMessage(), 'products' => $seededProducts, 'settings' => $seededSettings);
     }
 }
