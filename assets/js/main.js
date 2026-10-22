@@ -94,10 +94,17 @@
           body: data,
           headers: { 'Accept': 'application/json' }
         });
-        const json = await res.json();
-        const ok = json.success || json.ok;
+        let json = null;
+        try { json = await res.json(); } catch(e) { json = null; }
+        const ok = !!(json && (json.success || json.ok));
         if (msg) {
-          msg.textContent = json.message || (ok ? 'Enviado' : (json.error || 'Error'));
+          if (json && json.message) {
+            msg.textContent = json.message;
+          } else if (!res.ok || !json) {
+            msg.textContent = 'Error del servidor (HTTP ' + res.status + ').';
+          } else {
+            msg.textContent = ok ? 'Enviado' : 'Error';
+          }
           msg.style.color = ok ? '#2e7d32' : '#c62828';
         }
         if (ok) {
@@ -105,7 +112,7 @@
           setTimeout(() => { window.location.href = 'gracias.html'; }, 1200);
         }
       } catch(err) {
-        if (msg) { msg.textContent = 'Error de red.'; msg.style.color = '#c62828'; }
+        if (msg) { msg.textContent = 'No se pudo conectar con el servidor. Intenta por WhatsApp.'; msg.style.color = '#c62828'; }
       }
       btn.disabled = false;
     });
