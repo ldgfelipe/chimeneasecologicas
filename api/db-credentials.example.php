@@ -1,12 +1,14 @@
 <?php
 /**
- * CREDENCIALES DE LA BASE DE DATOS — archivo privado (ignorado por git).
+ * PLANTILLA de credenciales de la base de datos.
  *
- * Cópialo en el hosting y complétalo con los datos de cPanel -> MySQL Databases.
- * En cPanel el nombre de la BD y del usuario suelen llevar el prefijo de tu
- * usuario de hosting, por ejemplo: usuario_chimeneas
+ * Copia este archivo como `api/db-credentials.php` y complétalo con tus datos.
+ * `api/db-credentials.php` NO se sube a git (está en .gitignore) por seguridad.
+ *
+ * En cPanel (MySQL Databases) el nombre de la BD y del usuario suelen llevar
+ * el prefijo de tu usuario de hosting. Ejemplo: vanderbi_chimeneas
  */
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'chimeneasecologicas_web');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', 'localhost');           // casi siempre "localhost" en cPanel
+define('DB_NAME', 'usuario_basedatos');
+define('DB_USER', 'usuario_usuario');
+define('DB_PASS', 'Tu_Contrasena_Segura');
