@@ -71,23 +71,18 @@ if (empty($_SESSION['auth'])) {
 
 require __DIR__ . '/../api/db.php';
 
-// Configuración (BD sobreescribe config.json; merge para no perder claves)
-$jsonCfg = file_exists($configFile) ? (json_decode(file_get_contents($configFile), true) ?: array()) : array();
-$dbCfg = db_load_settings();
-$cfg = $dbCfg !== null ? array_merge($jsonCfg, $dbCfg) : $jsonCfg;
+// Configuración — solo base de datos
 $dbConnected = db_available();
+$cfg = db_load_settings();
+if ($cfg === null) $cfg = array();
 
-// Productos (BD como fuente de verdad; fallback a data/products.json)
+// Productos — solo base de datos
 $products = db_load_products();
-if ($products === null) {
-    $products = file_exists($prodFile) ? (json_decode(file_get_contents($prodFile), true) ?: array()) : array();
-}
+if ($products === null) $products = array();
 
-// Envíos de formularios
+// Envíos de formularios — solo base de datos
 $subs = db_load_submissions();
-if ($subs === null) {
-    $subs = file_exists($subsFile) ? (json_decode(file_get_contents($subsFile), true) ?: array()) : array();
-}
+if ($subs === null) $subs = array();
 
 $tab = $_GET['tab'] ?? 'config';
 $saved = false;
@@ -118,21 +113,16 @@ if (isset($_POST['change_password'])) {
     $tab = 'password';
 }
 
-// Save config
+// Save config — solo base de datos
 if (isset($_POST['save_config'])) {
     foreach (array('siteName','whatsapp','whatsappMessage','email','address','googleMapsUrl','googleMapsEmbed','gbpUrl','instagram','facebook','tiktok','analyticsId','formsEndpoint') as $k) {
         if (isset($_POST[$k])) $cfg[$k] = trim($_POST[$k]);
     }
     $cfg['cacheBust'] = (string)time();
     if (db_save_settings($cfg)) {
-        $saved = true;
         $saveMsg = 'Configuración guardada en la base de datos.';
-    } elseif (@file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))) {
-        $saved = true;
-        $saveMsg = 'Configuración guardada en archivo local (la base de datos no está disponible).';
     } else {
-        $saved = false;
-        $saveErr = 'No se pudo guardar: la base de datos no está disponible y el archivo config.json no es escribible. Revisa api/db-credentials.php y los permisos.';
+        $saveErr = 'No se pudo guardar en la base de datos. Revisa la conexión en la pestaña "Base de datos".';
     }
     $tab = 'config';
 }
@@ -160,9 +150,7 @@ if (isset($_POST['upload_image']) && isset($_FILES['image']) && $_FILES['image']
                     $cfg['cacheBust'] = (string)time();
                     $uploaded = true;
                 }
-                if (!db_save_settings($cfg)) {
-                    file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-                }
+                db_save_settings($cfg);
             }
         }
     }
@@ -212,13 +200,9 @@ if (isset($_POST['add_product'])) {
             $np['images'] = array($np['image']);
         }
         $products[] = $np;
-        if (!sync_products_db($products)) {
-            file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-        }
+        sync_products_db($products);
         $cfg['cacheBust'] = (string)time();
-        if (!db_save_settings($cfg)) {
-            file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-        }
+        db_save_settings($cfg);
         $prodMsg = 'Producto agregado.';
     }
     $tab = 'products';
@@ -226,13 +210,9 @@ if (isset($_POST['add_product'])) {
 if (isset($_POST['delete_product'])) {
     $did = (int)($_POST['delete_id'] ?? 0);
     $products = array_values(array_filter($products, function($p) use ($did){ return ($p['id'] ?? 0) != $did; }));
-    if (!sync_products_db($products)) {
-        file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-    }
+    sync_products_db($products);
     $cfg['cacheBust'] = (string)time();
-    if (!db_save_settings($cfg)) {
-        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-    }
+    db_save_settings($cfg);
     $prodMsg = 'Producto eliminado.';
     $tab = 'products';
 }
@@ -282,13 +262,9 @@ if (isset($_POST['edit_product'])) {
         }
     }
     unset($p);
-    if (!sync_products_db($products)) {
-        file_put_contents($prodFile, json_encode($products, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-    }
+    sync_products_db($products);
     $cfg['cacheBust'] = (string)time();
-    if (!db_save_settings($cfg)) {
-        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-    }
+    db_save_settings($cfg);
     $prodMsg = 'Producto actualizado.';
     $tab = 'products';
 }
@@ -367,10 +343,13 @@ th{color:#7a3b1e;}
     <p style="font-size:.85rem;margin-bottom:16px;">
       <strong>Almacenamiento:</strong>
       <?php if ($dbConnected): ?>
-        <span style="color:#2e7d32;font-weight:600;">Base de datos (<?php echo htmlspecialchars(DB_NAME); ?>)</span>
+        <span style="color:#2e7d32;font-weight:600;">Base de datos MySQL (<?php echo htmlspecialchars(DB_NAME); ?>)</span>
       <?php else: ?>
-        <span style="color:#c62828;font-weight:600;">Archivo JSON (sin conexión a la base de datos)</span>
+        <span style="color:#c62828;font-weight:600;">Sin conexión a la base de datos</span>
         <br><small style="color:#6b5a52;"><?php echo htmlspecialchars(db_last_error()); ?></small>
+        <?php if (!file_exists(__DIR__ . '/../api/db-credentials.php')): ?>
+          <br><small style="color:#c62828;"><strong>Falta el archivo <code>api/db-credentials.php</code>.</strong> Créalo en el servidor con tus credenciales (ver pestaña "Base de datos").</small>
+        <?php endif; ?>
       <?php endif; ?>
     </p>
     <form method="post">
@@ -607,15 +586,21 @@ th{color:#7a3b1e;}
 
     <h3 style="margin-top:24px;">Cómo configurarlo en tu hosting</h3>
     <ol style="font-size:.9rem;color:#6b5a52;line-height:1.7;">
-      <li>En cPanel abre <strong>MySQL Databases</strong> y crea una base de datos y un usuario con todos los permisos.</li>
-      <li>Crea el archivo <code>api/db-credentials.php</code> con el host, nombre de BD, usuario y contraseña (no se sube a git).</li>
-      <li>Vuelve aquí y presiona <strong>Crear tablas / Base de datos</strong>.</li>
-      <li>Presiona <strong>Guardar todo en la BD</strong> para copiar la configuración y los productos actuales.</li>
+      <li>En cPanel abre <strong>MySQL Databases</strong> y crea una base de datos y un usuario con todos los permisos (ALL PRIVILEGES).</li>
+      <li>Crea el archivo <code>api/db-credentials.php</code> en el servidor (NO se sube a git por seguridad). Contenido:
+        <pre style="background:#2b1f1a;color:#e6dacb;padding:12px;border-radius:8px;overflow:auto;margin:8px 0;">&lt;?php
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'vanderbi_chimeneas');
+define('DB_USER', 'vanderbi_chimeneas');
+define('DB_PASS', 'Chimenea#25');</pre>
+        <small>Si tu hosting usa un host distinto a <code>localhost</code>, cámbialo (lo indica cPanel en "MySQL Databases" o "Remote MySQL").</small>
+      </li>
+      <li>Vuelve aquí y presiona <strong>Crear tablas / Base de datos</strong> (crea tablas y copia los datos iniciales).</li>
     </ol>
     <p style="font-size:.85rem;color:#6b5a52;background:#f3ede4;padding:12px;border-radius:10px;">
-      <strong>Nota:</strong> La base de datos es la <strong>fuente de verdad</strong> para la configuración, los
-      productos y los envíos. Los archivos <code>config.json</code> y <code>data/products.json</code> solo se usan
-      como respaldo de solo lectura si la BD no está disponible.
+      <strong>Nota:</strong> Todo el sistema (configuración, productos y envíos) se guarda <strong>únicamente en la base de datos</strong>.
+      Los archivos <code>config.json</code> y <code>data/products.json</code> ya no se usan en tiempo de ejecución; solo sirven como datos
+      iniciales la primera vez que creas las tablas.
     </p>
   </div>
 

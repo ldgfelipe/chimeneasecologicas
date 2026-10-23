@@ -71,40 +71,14 @@ if (!$okCaptcha) {
     respond(false, 'La verificación de seguridad es incorrecta. Intenta de nuevo.');
 }
 
-// 4) Guardar en la base de datos (fuente de verdad)
+// 4) Guardar en la base de datos (único almacenamiento)
 try {
     $pdo = get_db();
-    $savedDb = false;
-    if ($pdo) {
-        try {
-            $stmt = $pdo->prepare("INSERT INTO submissions (name, email, phone, product, interest, appointment_date, message, consent_privacy, consent_ads, sent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
-            $stmt->execute(array($name, $email, $phone, $product, $interest, ($interest === 'cita' ? $appointmentDate : ''), $message, $consentPrivacy ? 1 : 0, $consentAds ? 1 : 0));
-            $savedDb = true;
-        } catch (PDOException $e) {
-            $savedDb = false;
-        }
+    if (!$pdo) {
+        respond(false, 'Error de conexión con la base de datos. Intenta por WhatsApp.');
     }
-
-    if (!$savedDb) {
-        $dir = __DIR__ . '/../data';
-        if (!is_dir($dir)) @mkdir($dir, 0755, true);
-        $file = $dir . '/submissions.json';
-        $subs = array();
-        if (file_exists($file)) {
-            $subs = json_decode(file_get_contents($file), true) ?: array();
-        }
-        $subs[] = array(
-            'date' => date('Y-m-d H:i:s'),
-            'name' => $name, 'email' => $email, 'phone' => $phone,
-            'product' => $product, 'interest' => $interest,
-            'appointment_date' => ($interest === 'cita' ? $appointmentDate : ''),
-            'message' => $message,
-            'consent_privacy' => $consentPrivacy ? 1 : 0,
-            'consent_ads' => $consentAds ? 1 : 0,
-            'sent' => 0,
-        );
-        @file_put_contents($file, json_encode($subs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    }
+    $stmt = $pdo->prepare("INSERT INTO submissions (name, email, phone, product, interest, appointment_date, message, consent_privacy, consent_ads, sent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+    $stmt->execute(array($name, $email, $phone, $product, $interest, ($interest === 'cita' ? $appointmentDate : ''), $message, $consentPrivacy ? 1 : 0, $consentAds ? 1 : 0));
 
     respond(true, '¡Gracias! Tu mensaje fue recibido. Te contactaremos pronto.');
 } catch (Throwable $e) {
