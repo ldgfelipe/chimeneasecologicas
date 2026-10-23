@@ -132,6 +132,24 @@ if (isset($_POST['save_config'])) {
     $tab = 'config';
 }
 
+// Guardar popup/ventana emergente
+if (isset($_POST['save_popup'])) {
+    $cfg['popup_enabled'] = isset($_POST['popup_enabled']) ? '1' : '0';
+    $cfg['popup_once'] = isset($_POST['popup_once']) ? '1' : '0';
+    foreach (array('popup_title','popup_body','popup_image','popup_btn_text','popup_btn_url') as $k) {
+        if (isset($_POST[$k])) {
+            $cfg[$k] = trim($_POST[$k]);
+        }
+    }
+    $cfg['cacheBust'] = (string)time();
+    if (db_save_settings($cfg)) {
+        $saveMsg = 'Ventana emergente guardada en la base de datos.';
+    } else {
+        $saveErr = 'No se pudo guardar el popup en la base de datos.';
+    }
+    $tab = 'popup';
+}
+
 // Upload image (sections)
 if (isset($_POST['upload_image']) && isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
     $key = $_POST['image_key'] ?? '';
@@ -333,6 +351,7 @@ th{color:#7a3b1e;}
     <a class="tab <?php echo $tab==='products'?'active':''; ?>" href="?tab=products">Productos</a>
     <a class="tab <?php echo $tab==='forms'?'active':''; ?>" href="?tab=forms">Formularios</a>
     <a class="tab <?php echo $tab==='analytics'?'active':''; ?>" href="?tab=analytics">Analytics y GBP</a>
+    <a class="tab <?php echo $tab==='popup'?'active':''; ?>" href="?tab=popup">Popup / Ventana emergente</a>
     <a class="tab <?php echo $tab==='database'?'active':''; ?>" href="?tab=database">Base de datos</a>
     <a class="tab <?php echo $tab==='password'?'active':''; ?>" href="?tab=password">Contraseña</a>
   </div>
@@ -544,9 +563,44 @@ th{color:#7a3b1e;}
     <p><strong>Google Analytics ID:</strong> <?php echo htmlspecialchars($cfg['analyticsId'] ?? 'No configurado'); ?></p>
     <p><a href="https://analytics.google.com" target="_blank" rel="noopener">Abrir Google Analytics</a></p>
     <p><strong>Google Business Profile:</strong> <a href="<?php echo htmlspecialchars($cfg['gbpUrl'] ?? '#'); ?>" target="_blank" rel="noopener">Ver perfil</a></p>
-    <p style="font-size:.85rem;color:#6b5a52;margin-top:12px;">Para medir visitas, configura tu ID de GA4 en la pestaña de Configuración y descomenta el script de gtag en index.html.</p>
+    <p style="font-size:.85rem;color:#6b5a52;margin-top:12px;">Para medir visitas, configura tu ID de GA4 en la pestaña de Configuración.</p>
     <h3 style="margin-top:20px;">Resumen de formularios</h3>
     <p>Total de envíos: <strong><?php echo count($subs); ?></strong></p>
+  </div>
+
+  <?php elseif ($tab === 'popup'): ?>
+  <div class="card">
+    <h2>Popup / Ventana emergente</h2>
+    <p style="color:#6b5a52;font-size:.9rem;margin-bottom:16px;">Muestra un aviso, promoción o mensaje al cargar la página. Puedes activarlo/desactivarlo desde aquí.</p>
+    <form method="post">
+      <input type="hidden" name="save_popup" value="1">
+      <label class="check" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <input type="checkbox" name="popup_enabled" value="1" <?php echo (!empty($cfg['popup_enabled']) && $cfg['popup_enabled'] !== '0') ? 'checked' : ''; ?>>
+        <span>Activar ventana emergente</span>
+      </label>
+      <label class="check" style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <input type="checkbox" name="popup_once" value="1" <?php echo (!empty($cfg['popup_once']) && $cfg['popup_once'] !== '0') ? 'checked' : ''; ?>>
+        <span>Mostrar solo una vez por visitante (usar cookie)</span>
+      </label>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Título</label>
+      <input type="text" name="popup_title" value="<?php echo htmlspecialchars($cfg['popup_title'] ?? ''); ?>" placeholder="Ej. Aviso importante">
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Mensaje / Cuerpo</label>
+      <textarea name="popup_body" rows="4" placeholder="Escribe el mensaje que aparecerá en el popup..."><?php echo htmlspecialchars($cfg['popup_body'] ?? ''); ?></textarea>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Imagen (URL opcional)</label>
+      <input type="text" name="popup_image" value="<?php echo htmlspecialchars($cfg['popup_image'] ?? ''); ?>" placeholder="assets/img/... o https://...">
+      <div class="grid">
+        <div>
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Texto del botón (opcional)</label>
+          <input type="text" name="popup_btn_text" value="<?php echo htmlspecialchars($cfg['popup_btn_text'] ?? ''); ?>" placeholder="Ej. Ver más / Cerrar">
+        </div>
+        <div>
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Enlace del botón (opcional)</label>
+          <input type="text" name="popup_btn_url" value="<?php echo htmlspecialchars($cfg['popup_btn_url'] ?? ''); ?>" placeholder="#contacto o https://...">
+        </div>
+      </div>
+      <button type="submit">Guardar popup</button>
+    </form>
+    <p style="font-size:.85rem;color:#6b5a52;margin-top:12px;">Si no pones botón, solo aparecerá el botón "Cerrar".</p>
   </div>
 
   <?php elseif ($tab === 'database'): ?>
