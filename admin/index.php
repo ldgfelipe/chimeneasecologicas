@@ -71,14 +71,19 @@ if (empty($_SESSION['auth'])) {
 
 require __DIR__ . '/../api/db.php';
 
-// Configuración — solo base de datos
+// Configuración — base de datos con respaldo a config.json si está vacío
 $dbConnected = db_available();
 $cfg = db_load_settings();
-if ($cfg === null) $cfg = array();
+if ($cfg === null || empty($cfg)) {
+    $jsonCfg = file_exists($configFile) ? (json_decode(file_get_contents($configFile), true) ?: array()) : array();
+    $cfg = $jsonCfg;
+}
 
-// Productos — solo base de datos
+// Productos — base de datos con respaldo a data/products.json si está vacío
 $products = db_load_products();
-if ($products === null) $products = array();
+if ($products === null || empty($products)) {
+    $products = file_exists($prodFile) ? (json_decode(file_get_contents($prodFile), true) ?: array()) : array();
+}
 
 // Envíos de formularios — solo base de datos
 $subs = db_load_submissions();
