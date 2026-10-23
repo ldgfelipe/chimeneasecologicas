@@ -71,11 +71,11 @@ if (empty($_SESSION['auth'])) {
 
 require __DIR__ . '/../api/db.php';
 
-// Configuración (BD como fuente de verdad; fallback de solo lectura a config.json)
-$cfg = db_load_settings();
-if ($cfg === null) {
-    $cfg = json_decode(file_get_contents($configFile), true) ?: array();
-}
+// Configuración (BD sobreescribe config.json; merge para no perder claves)
+$jsonCfg = file_exists($configFile) ? (json_decode(file_get_contents($configFile), true) ?: array()) : array();
+$dbCfg = db_load_settings();
+$cfg = $dbCfg !== null ? array_merge($jsonCfg, $dbCfg) : $jsonCfg;
+$dbConnected = db_available();
 
 // Productos (BD como fuente de verdad; fallback a data/products.json)
 $products = db_load_products();
@@ -95,6 +95,8 @@ $uploaded = false;
 $prodMsg = '';
 $pwMsg = '';
 $pwErr = '';
+$saveMsg = '';
+$saveErr = '';
 
 // Cambiar contraseña
 if (isset($_POST['change_password'])) {
@@ -122,11 +124,16 @@ if (isset($_POST['save_config'])) {
         if (isset($_POST[$k])) $cfg[$k] = trim($_POST[$k]);
     }
     $cfg['cacheBust'] = (string)time();
-    if (!db_save_settings($cfg)) {
-        // Fallback: guarda en config.json solo si la BD no está disponible
-        file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    if (db_save_settings($cfg)) {
+        $saved = true;
+        $saveMsg = 'Configuración guardada en la base de datos.';
+    } elseif (@file_put_contents($configFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))) {
+        $saved = true;
+        $saveMsg = 'Configuración guardada en archivo local (la base de datos no está disponible).';
+    } else {
+        $saved = false;
+        $saveErr = 'No se pudo guardar: la base de datos no está disponible y el archivo config.json no es escribible. Revisa api/db-credentials.php y los permisos.';
     }
-    $saved = true;
     $tab = 'config';
 }
 
@@ -349,13 +356,23 @@ th{color:#7a3b1e;}
     <a class="tab <?php echo $tab==='password'?'active':''; ?>" href="?tab=password">Contraseña</a>
   </div>
 
-  <?php if ($saved) echo '<div class="alert alert-ok">Configuración guardada.</div>'; ?>
+  <?php if ($saveMsg) echo '<div class="alert alert-ok">'.htmlspecialchars($saveMsg).'</div>'; ?>
+  <?php if ($saveErr) echo '<div class="alert alert-err">'.htmlspecialchars($saveErr).'</div>'; ?>
   <?php if ($uploaded) echo '<div class="alert alert-ok">Imagen subida correctamente.</div>'; ?>
-  <?php if ($prodMsg) echo '<div class="alert alert-ok">'.$prodMsg.'</div>'; ?>
+  <?php if ($prodMsg) echo '<div class="alert alert-ok">'.htmlspecialchars($prodMsg).'</div>'; ?>
 
   <?php if ($tab === 'config'): ?>
   <div class="card">
     <h2>Configuración general</h2>
+    <p style="font-size:.85rem;margin-bottom:16px;">
+      <strong>Almacenamiento:</strong>
+      <?php if ($dbConnected): ?>
+        <span style="color:#2e7d32;font-weight:600;">Base de datos (<?php echo htmlspecialchars(DB_NAME); ?>)</span>
+      <?php else: ?>
+        <span style="color:#c62828;font-weight:600;">Archivo JSON (sin conexión a la base de datos)</span>
+        <br><small style="color:#6b5a52;"><?php echo htmlspecialchars(db_last_error()); ?></small>
+      <?php endif; ?>
+    </p>
     <form method="post">
       <input type="hidden" name="save_config" value="1">
       <?php foreach (array('siteName'=>'Nombre del sitio','whatsapp'=>'WhatsApp (solo números)','whatsappMessage'=>'Mensaje de WhatsApp','email'=>'Email','address'=>'Dirección','googleMapsUrl'=>'URL Google Maps','googleMapsEmbed'=>'URL embed Google Maps','gbpUrl'=>'URL Google Business Profile','instagram'=>'Instagram','facebook'=>'Facebook','tiktok'=>'TikTok','analyticsId'=>'Google Analytics ID (G-XXXX)','formsEndpoint'=>'Endpoint de formularios (local: /api/contact.php | hosting estático: URL de Formspree)') as $k=>$label): ?>
