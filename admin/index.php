@@ -71,19 +71,14 @@ if (empty($_SESSION['auth'])) {
 
 require __DIR__ . '/../api/db.php';
 
-// Configuración — base de datos con respaldo a config.json si está vacío
+// Configuración — solo base de datos
 $dbConnected = db_available();
 $cfg = db_load_settings();
-if ($cfg === null || empty($cfg)) {
-    $jsonCfg = file_exists($configFile) ? (json_decode(file_get_contents($configFile), true) ?: array()) : array();
-    $cfg = $jsonCfg;
-}
+if ($cfg === null) $cfg = array();
 
-// Productos — base de datos con respaldo a data/products.json si está vacío
+// Productos — solo base de datos
 $products = db_load_products();
-if ($products === null || empty($products)) {
-    $products = file_exists($prodFile) ? (json_decode(file_get_contents($prodFile), true) ?: array()) : array();
-}
+if ($products === null) $products = array();
 
 // Envíos de formularios — solo base de datos
 $subs = db_load_submissions();
@@ -118,10 +113,19 @@ if (isset($_POST['change_password'])) {
     $tab = 'password';
 }
 
-// Save config — solo base de datos
+// Save config — solo base de datos (sin JSON)
 if (isset($_POST['save_config'])) {
-    foreach (array('siteName','whatsapp','whatsappMessage','email','address','googleMapsUrl','googleMapsEmbed','gbpUrl','instagram','facebook','tiktok','analyticsId','formsEndpoint') as $k) {
-        if (isset($_POST[$k])) $cfg[$k] = trim($_POST[$k]);
+    // Sanitizar para evitar triggers de ModSecurity
+    foreach ($_POST as $pk => $pv) {
+        if (is_string($pv)) {
+            $_POST[$pk] = strip_tags($pv);
+        }
+    }
+    $keys = array('siteName','whatsapp','whatsappMessage','email','address','googleMapsUrl','googleMapsEmbed','gbpUrl','instagram','facebook','tiktok','analyticsId','formsEndpoint');
+    foreach ($keys as $k) {
+        if (isset($_POST[$k])) {
+            $cfg[$k] = trim($_POST[$k]);
+        }
     }
     $cfg['cacheBust'] = (string)time();
     if (db_save_settings($cfg)) {
@@ -425,6 +429,8 @@ th{color:#7a3b1e;}
         <?php endif; ?>
       <?php endif; ?>
     </p>
+    <p style="font-size:.85rem;color:#6b5a52;margin-bottom:12px;">Todo se guarda <strong>únicamente</strong> en la base de datos.</p>
+
     <form method="post">
       <input type="hidden" name="save_config" value="1">
       <?php foreach (array('siteName'=>'Nombre del sitio','whatsapp'=>'WhatsApp (solo números)','whatsappMessage'=>'Mensaje de WhatsApp','email'=>'Email','address'=>'Dirección','googleMapsUrl'=>'URL Google Maps','googleMapsEmbed'=>'URL embed Google Maps','gbpUrl'=>'URL Google Business Profile','instagram'=>'Instagram','facebook'=>'Facebook','tiktok'=>'TikTok','analyticsId'=>'Google Analytics ID (G-XXXX)','formsEndpoint'=>'Endpoint de formularios (local: /api/contact.php | hosting estático: URL de Formspree)') as $k=>$label): ?>

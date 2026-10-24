@@ -1,13 +1,8 @@
 <?php
 require_once __DIR__ . '/api/db.php';
 $cfg = db_load_settings();
-if ($cfg === null || empty($cfg)) {
-    $jsonFile = __DIR__ . '/config.json';
-    if (file_exists($jsonFile)) {
-        $cfg = json_decode(file_get_contents($jsonFile), true) ?: array();
-    } else {
-        $cfg = array();
-    }
+if ($cfg === null) {
+    $cfg = array();
 }
 $customHead = $cfg['custom_head'] ?? '';
 $customBodyStart = $cfg['custom_body_start'] ?? '';
@@ -176,7 +171,7 @@ $analyticsId = $cfg['analyticsId'] ?? '';
           <div class="showroom-info ">
             <p><strong>Dirección:</strong> Calzada Zavaleta 2302, Puebla, México</p>
             <p><strong>WhatsApp:</strong> <a id="wa-showroom" href="#">+52 (222) 715 0505</a></p>
-            <p><strong>Google Maps:</strong> <a id="maps-link" href="#" target="_blank" rel="noopener">Ver ubicación</a></p>
+            <p><strong>Google Maps:</strong> <a id="maps-link" href="<?php echo htmlspecialchars($mapsUrl); ?>" target="_blank" rel="noopener">Ver ubicación</a></p>
             <div class="showroom-actions">
               <a id="wa-visit" href="#" class="btn btn-primary" target="_blank" rel="noopener">Agendar visita</a>
               <a id="wa-catalog" href="#" class="btn btn-outline" target="_blank" rel="noopener">Pedir catálogo</a>
@@ -184,7 +179,7 @@ $analyticsId = $cfg['analyticsId'] ?? '';
           </div>
         </div>
         <div class="map-embed">
-          <iframe id="map-iframe" src="" width="100%" height="360" style="border:0;border-radius:16px;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <iframe id="map-iframe" src="<?php echo htmlspecialchars($mapsEmbed); ?>" width="100%" height="360" style="border:0;border-radius:16px;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
       </div>
     </section>
