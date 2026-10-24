@@ -115,18 +115,25 @@ if (isset($_POST['change_password'])) {
 
 // Save config — solo base de datos (sin JSON)
 if (isset($_POST['save_config'])) {
-    // Sanitizar para evitar triggers de ModSecurity
-    foreach ($_POST as $pk => $pv) {
-        if (is_string($pv)) {
-            $_POST[$pk] = strip_tags($pv);
-        }
-    }
-    $keys = array('siteName','whatsapp','whatsappMessage','email','address','googleMapsUrl','googleMapsEmbed','gbpUrl','instagram','facebook','tiktok','analyticsId','formsEndpoint');
-    foreach ($keys as $k) {
+    $urlKeys = array('instagram','facebook','tiktok','googleMapsUrl','googleMapsEmbed','gbpUrl','formsEndpoint');
+    $textKeys = array('siteName','whatsapp','whatsappMessage','email','address','analyticsId');
+
+    foreach ($urlKeys as $k) {
         if (isset($_POST[$k])) {
-            $cfg[$k] = trim($_POST[$k]);
+            $v = $_POST[$k];
+            $v = str_replace(array("\r", "\n", "\t"), ' ', $v);
+            $v = trim($v);
+            $cfg[$k] = $v;
         }
     }
+
+    foreach ($textKeys as $k) {
+        if (isset($_POST[$k])) {
+            $v = trim(strip_tags($_POST[$k]));
+            $cfg[$k] = $v;
+        }
+    }
+
     $cfg['cacheBust'] = (string)time();
     if (db_save_settings($cfg)) {
         $saveMsg = 'Configuración guardada en la base de datos.';
