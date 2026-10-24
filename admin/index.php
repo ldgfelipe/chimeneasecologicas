@@ -132,6 +132,24 @@ if (isset($_POST['save_config'])) {
     $tab = 'config';
 }
 
+// Guardar código personalizado (head / body start / body end)
+if (isset($_POST['save_custom_code'])) {
+    foreach (array('custom_head','custom_body_start','custom_body_end') as $k) {
+        if (isset($_POST[$k])) {
+            $cfg[$k] = $_POST[$k];
+        } else {
+            $cfg[$k] = '';
+        }
+    }
+    $cfg['cacheBust'] = (string)time();
+    if (db_save_settings($cfg)) {
+        $saveMsg = 'Código personalizado guardado en la base de datos.';
+    } else {
+        $saveErr = 'No se pudo guardar el código personalizado.';
+    }
+    $tab = 'customcode';
+}
+
 // Guardar popup/ventana emergente
 if (isset($_POST['save_popup'])) {
     $cfg['popup_enabled'] = isset($_POST['popup_enabled']) ? '1' : '0';
@@ -381,6 +399,7 @@ th{color:#7a3b1e;}
     <a class="tab <?php echo $tab==='products'?'active':''; ?>" href="?tab=products">Productos</a>
     <a class="tab <?php echo $tab==='forms'?'active':''; ?>" href="?tab=forms">Formularios</a>
     <a class="tab <?php echo $tab==='analytics'?'active':''; ?>" href="?tab=analytics">Analytics y GBP</a>
+    <a class="tab <?php echo $tab==='customcode'?'active':''; ?>" href="?tab=customcode">Scripts / Código personalizado</a>
     <a class="tab <?php echo $tab==='popup'?'active':''; ?>" href="?tab=popup">Popup / Ventana emergente</a>
     <a class="tab <?php echo $tab==='database'?'active':''; ?>" href="?tab=database">Base de datos</a>
     <a class="tab <?php echo $tab==='password'?'active':''; ?>" href="?tab=password">Contraseña</a>
@@ -593,9 +612,28 @@ th{color:#7a3b1e;}
     <p><strong>Google Analytics ID:</strong> <?php echo htmlspecialchars($cfg['analyticsId'] ?? 'No configurado'); ?></p>
     <p><a href="https://analytics.google.com" target="_blank" rel="noopener">Abrir Google Analytics</a></p>
     <p><strong>Google Business Profile:</strong> <a href="<?php echo htmlspecialchars($cfg['gbpUrl'] ?? '#'); ?>" target="_blank" rel="noopener">Ver perfil</a></p>
-    <p style="font-size:.85rem;color:#6b5a52;margin-top:12px;">Para medir visitas, configura tu ID de GA4 en la pestaña de Configuración.</p>
+    <p style="font-size:.85rem;color:#6b5a52;margin-top:12px;">Para medir visitas, configura tu ID de GA4 en la pestaña de Configuración o usando la pestaña <strong>Scripts / Código personalizado</strong>.</p>
     <h3 style="margin-top:20px;">Resumen de formularios</h3>
     <p>Total de envíos: <strong><?php echo count($subs); ?></strong></p>
+  </div>
+
+  <?php elseif ($tab === 'customcode'): ?>
+  <div class="card">
+    <h2>Scripts / Código personalizado</h2>
+    <p style="color:#6b5a52;font-size:.9rem;margin-bottom:16px;">Inserta código directamente en el sitio sin editar archivos. Se guarda en la base de datos.</p>
+    <form method="post">
+      <input type="hidden" name="save_custom_code" value="1">
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">1) Código dentro de &lt;head&gt; (antes de &lt;/head&gt;)</label>
+      <textarea name="custom_head" rows="8" style="font-family:Consolas,monospace;font-size:.85rem;" placeholder="Ej. Google Tag Manager, Meta Pixel, verificación de dominio, etc."><?php echo htmlspecialchars($cfg['custom_head'] ?? ''); ?></textarea>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">2) Código justo después de &lt;body&gt;</label>
+      <textarea name="custom_body_start" rows="6" style="font-family:Consolas,monospace;font-size:.85rem;" placeholder="Ej. Google Tag Manager noscript, banners globales, etc."><?php echo htmlspecialchars($cfg['custom_body_start'] ?? ''); ?></textarea>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">3) Código antes de &lt;/body&gt;</label>
+      <textarea name="custom_body_end" rows="8" style="font-family:Consolas,monospace;font-size:.85rem;" placeholder="Ej. gtag/GA4, chatbots, widgets, scripts con async/defer."><?php echo htmlspecialchars($cfg['custom_body_end'] ?? ''); ?></textarea>
+      <button type="submit">Guardar código</button>
+    </form>
+    <div style="margin-top:16px;padding:12px;background:#f3ede4;border-radius:10px;font-size:.85rem;color:#6b5a52;">
+      <strong>Recomendado:</strong> Usa esta sección para pegar el código completo que te dé Google, Meta, etc. Se inyecta directamente en <code>index.php</code>.
+    </div>
   </div>
 
   <?php elseif ($tab === 'popup'): ?>

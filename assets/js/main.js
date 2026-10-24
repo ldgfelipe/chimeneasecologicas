@@ -62,17 +62,19 @@
   const email = document.getElementById('footer-email'); if (email) email.textContent = cfg.email;
   const year = document.getElementById('year'); if (year) year.textContent = new Date().getFullYear();
 
-  // Google Analytics 4 (dynamic)
-  if (cfg.analyticsId && cfg.analyticsId !== 'G-XXXXXXXXXX') {
+  // Google Analytics 4 (dynamic) - ahora inyectado desde PHP si no hay custom code
+  if (cfg.analyticsId && cfg.analyticsId !== 'G-XXXXXXXXXX' && !document.querySelector('script[src*="googletagmanager.com/gtag/js"]')) {
     const s = document.createElement('script');
     s.async = true;
     s.src = 'https://www.googletagmanager.com/gtag/js?id=' + cfg.analyticsId;
     document.head.appendChild(s);
     window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-    window.gtag = gtag;
-    gtag('js', new Date());
-    gtag('config', cfg.analyticsId);
+    if (typeof window.gtag !== 'function') {
+      function gtag(){ dataLayer.push(arguments); }
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', cfg.analyticsId);
+    }
   }
 
   // Popup / ventana emergente (configurable desde el admin)
