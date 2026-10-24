@@ -99,7 +99,7 @@
     if (titleEl) { titleEl.textContent = title; titleEl.style.display = title ? '' : 'none'; }
     if (textEl) { textEl.textContent = body; textEl.style.display = body ? '' : 'none'; }
     if (imgEl) {
-      if (image) { imgEl.src = image; imgEl.alt = title || 'Aviso'; imgEl.style.display = ''; }
+      if (image) { imgEl.src = image + (image.indexOf('?') === -1 ? cb : ''); imgEl.alt = title || 'Aviso'; imgEl.style.display = ''; }
       else { imgEl.removeAttribute('src'); imgEl.style.display = 'none'; }
     }
     const btnText = String(cfg.popup_btn_text || '').trim();

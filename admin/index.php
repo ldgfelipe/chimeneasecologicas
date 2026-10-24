@@ -141,6 +141,36 @@ if (isset($_POST['save_popup'])) {
             $cfg[$k] = trim($_POST[$k]);
         }
     }
+
+    // Quitar imagen actual
+    if (!empty($_POST['popup_image_remove'])) {
+        $cfg['popup_image'] = '';
+    }
+
+    // Subir imagen del popup (se convierte a WebP automáticamente)
+    if (isset($_FILES['popup_image_file']) && $_FILES['popup_image_file']['error'] === UPLOAD_ERR_OK) {
+        $ext = strtolower(pathinfo($_FILES['popup_image_file']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, array('jpg','jpeg','png','webp','gif'))) {
+            if (!is_dir($imgDir)) @mkdir($imgDir, 0755, true);
+            $tmp = $imgDir . '/popup-upload.tmp';
+            if (move_uploaded_file($_FILES['popup_image_file']['tmp_name'], $tmp)) {
+                $dest = $imgDir . '/popup.webp';
+                if (convert_to_webp($tmp, $dest)) {
+                    @unlink($tmp);
+                    $cfg['popup_image'] = 'assets/img/popup.webp';
+                } else {
+                    $finalName = 'popup.' . $ext;
+                    @rename($tmp, $imgDir . '/' . $finalName);
+                    $cfg['popup_image'] = 'assets/img/' . $finalName;
+                }
+            } else {
+                $saveErr = 'No se pudo mover la imagen subida. Verifica permisos de assets/img.';
+            }
+        } else {
+            $saveErr = 'Formato de imagen no permitido (usa JPG, PNG, WebP o GIF).';
+        }
+    }
+
     $cfg['cacheBust'] = (string)time();
     if (db_save_settings($cfg)) {
         $saveMsg = 'Ventana emergente guardada en la base de datos.';
@@ -572,7 +602,7 @@ th{color:#7a3b1e;}
   <div class="card">
     <h2>Popup / Ventana emergente</h2>
     <p style="color:#6b5a52;font-size:.9rem;margin-bottom:16px;">Muestra un aviso, promoción o mensaje al cargar la página. Puedes activarlo/desactivarlo desde aquí.</p>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       <input type="hidden" name="save_popup" value="1">
       <label class="check" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
         <input type="checkbox" name="popup_enabled" value="1" <?php echo (!empty($cfg['popup_enabled']) && $cfg['popup_enabled'] !== '0') ? 'checked' : ''; ?>>
@@ -586,7 +616,18 @@ th{color:#7a3b1e;}
       <input type="text" name="popup_title" value="<?php echo htmlspecialchars($cfg['popup_title'] ?? ''); ?>" placeholder="Ej. Aviso importante">
       <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Mensaje / Cuerpo</label>
       <textarea name="popup_body" rows="4" placeholder="Escribe el mensaje que aparecerá en el popup..."><?php echo htmlspecialchars($cfg['popup_body'] ?? ''); ?></textarea>
-      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Imagen (URL opcional)</label>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Imagen del popup</label>
+      <?php if (!empty($cfg['popup_image'])): ?>
+        <img src="../<?php echo htmlspecialchars($cfg['popup_image']); ?>?v=<?php echo time(); ?>" alt="Imagen del popup" style="max-width:100%;max-height:220px;object-fit:cover;border-radius:10px;border:1px solid #e6ddd2;margin-bottom:8px;display:block;">
+        <label class="check" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <input type="checkbox" name="popup_image_remove" value="1">
+          <span>Quitar la imagen actual</span>
+        </label>
+      <?php endif; ?>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">Subir imagen (se convierte a WebP)</label>
+      <input type="file" name="popup_image_file" accept="image/jpeg,image/png,image/webp,image/gif">
+      <small style="display:block;color:#6b5a52;margin-bottom:12px;">Formatos: JPG, PNG, WebP o GIF. Tamaño recomendado: 1000 × 700 px.</small>
+      <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:#6b5a52;font-weight:600;">O escribe una URL de imagen (opcional)</label>
       <input type="text" name="popup_image" value="<?php echo htmlspecialchars($cfg['popup_image'] ?? ''); ?>" placeholder="assets/img/... o https://...">
       <div class="grid">
         <div>
